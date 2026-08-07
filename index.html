@@ -667,7 +667,15 @@ let FB_DB = null, FB_KEY = null, FB_LISTENER = null, FB_PHOTO_LISTENER = null, F
 // 既定のFirebase接続設定（アプリに内蔵）。
 // 同期キーはここに書かない：このファイルは公開リポジトリに置くため、
 // キーだけは各端末で1回入力してもらう（キーを知る人だけがデータにアクセスできる）。
-const DEFAULT_FB_CONFIG = null; // 例: { apiKey:"...", authDomain:"...", databaseURL:"https://...", projectId:"...", storageBucket:"...", messagingSenderId:"...", appId:"..." }
+const DEFAULT_FB_CONFIG = {
+  apiKey: "AIzaSyBF5UswvIXO1MKGbpv2vJrmFgsYS0UNSnU",
+  authDomain: "vegemane.firebaseapp.com",
+  databaseURL: "https://vegemane-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "vegemane",
+  storageBucket: "vegemane.firebasestorage.app",
+  messagingSenderId: "516654510928",
+  appId: "1:516654510928:web:5d84fea96669f0be17f255"
+};
 
 function loadCloudConfig() {
   try {
