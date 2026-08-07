@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>家庭菜園管理 v20260807</title>
+<title>家庭菜園管理 v20260807b</title>
 <style>
 :root {
   --primary:#3d7a3d; --primary-d:#2a5a2a; --primary-l:#a8d4a8;
@@ -552,7 +552,7 @@ function _compressImage(file, callback) {
 }
 
 // ===================== STATE =====================
-let S={view:'timeline', selVeg:null, editSchedId:null, editHarvestId:null, editVegId:null, detailTab:'info'};
+let S={view:'timeline', selVeg:null, editSchedId:null, editHarvestId:null, editVegId:null, detailTab:'info', tlDays:'90'};
 let D={vegetables:[], schedules:[], harvests:[]};
 let idCounter=1000;
 let _editPhotos=[]; // 作業記録編集中の写真配列（最大8枚・base64）
@@ -1485,7 +1485,18 @@ function renderSidebar(){
 // --- Timeline ---
 function renderTimeline(container){
   const today=new Date(); today.setHours(0,0,0,0);
-  const start=new Date(today); start.setDate(start.getDate()-90);
+  // 表示期間: 90日/180日/365日/全期間（全期間は最古の記録日まで遡る）
+  let daysBack=parseInt(S.tlDays)||90;
+  if(S.tlDays==='all'){
+    let min=null;
+    D.schedules.forEach(s=>{if(s.date&&(!min||s.date<min))min=s.date;});
+    D.harvests.forEach(h=>{if(h.date&&(!min||h.date<min))min=h.date;});
+    if(min){
+      const d=new Date(min+'T00:00:00');
+      daysBack=Math.max(90, Math.ceil((today-d)/86400000));
+    }
+  }
+  const start=new Date(today); start.setDate(start.getDate()-daysBack);
   const end=new Date(today); end.setDate(end.getDate()+30);
   const dates=[];
   for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1))dates.push(new Date(d));
@@ -1532,9 +1543,14 @@ function renderTimeline(container){
     </tr>`;
   }).join('');
 
+  const rangeOpts=[['90','過去90日'],['180','過去180日'],['365','過去1年'],['all','全期間']]
+    .map(([v,l])=>`<option value="${v}"${S.tlDays===v?' selected':''}>${l}</option>`).join('');
   container.innerHTML=`<div id="timeline-wrap">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-      <h2>📅 栽培管理一覧</h2>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <h2>📅 栽培管理一覧</h2>
+        <select id="tl-range" style="width:auto;font-size:11px;padding:2px 6px">${rangeOpts}</select>
+      </div>
       <div style="font-size:11px;color:var(--muted)">
         <span style="display:inline-flex;align-items:center;gap:3px;margin-right:8px">
           <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#dc2626"></span>収穫
@@ -2547,6 +2563,10 @@ document.addEventListener('change', e => {
   if (e.target.id === 'photo-push-toggle') {
     localStorage.setItem('yasai_photo_push', e.target.checked ? 'true' : 'false');
     render(); // 警告メッセージの表示/非表示を更新
+  }
+  if (e.target.id === 'tl-range') {
+    S.tlDays = e.target.value;
+    render();
   }
 });
 
