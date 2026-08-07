@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>家庭菜園管理 v20260807b</title>
+<title>家庭菜園管理 v20260807c</title>
 <style>
 :root {
   --primary:#3d7a3d; --primary-d:#2a5a2a; --primary-l:#a8d4a8;
@@ -522,8 +522,8 @@ const HARVEST_SEED=[
 // createObjectURL でメモリ効率よく読み込み → Canvas で 800px/JPEG65% に圧縮
 // readAsDataURL は Base64 変換で数十MB消費するためスマホで応答不能になる問題を回避
 function _compressImage(file, callback) {
-  const MAX_PX = 500;   // 800→500px（Firebase転送量を約60%削減）
-  const QUALITY = 0.60; // 65%→60%（家庭菜園の記録には十分な画質）
+  const MAX_PX = 800;   // 長辺800px（拡大しても葉の状態などを確認できる画質）
+  const QUALITY = 0.65; // JPEG品質65%（1枚あたり約100〜150KB）
   const blobUrl = URL.createObjectURL(file);
   const img = new Image();
   img.onload = () => {
