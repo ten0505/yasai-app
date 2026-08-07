@@ -1,0 +1,2621 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>家庭菜園管理 v20260807</title>
+<style>
+:root {
+  --primary:#3d7a3d; --primary-d:#2a5a2a; --primary-l:#a8d4a8;
+  --accent:#e8952a; --bg:#f0f4ed; --surface:#fff; --border:#cce0cc;
+  --text:#1a2e1a; --muted:#5a7a5a; --sidebar:200px; --hdr:52px; --r:8px;
+  --c-harvest:#dc2626; --c-plant:#16a34a; --c-water:#2563eb;
+  --c-fertilize:#ca8a04; --c-train:#ea580c; --c-spray:#7c3aed;
+  --c-prepare:#92400e; --c-observe:#0891b2; --c-other:#6b7280;
+  --c-plan:#93c5fd; --c-actual:#bbf7d0;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Meiryo','Yu Gothic',sans-serif;background:var(--bg);color:var(--text);font-size:13px}
+button{cursor:pointer;border:none;background:none;font-family:inherit;font-size:inherit}
+input,select,textarea{font-family:inherit;font-size:inherit;border:1px solid var(--border);border-radius:4px;padding:4px 8px;width:100%;background:#fff}
+textarea{resize:vertical}
+label{display:block;font-size:12px;color:var(--muted);margin-bottom:2px;margin-top:8px}
+h2{font-size:15px;color:var(--primary-d)}
+h3{font-size:13px;color:var(--primary-d)}
+
+/* Layout */
+#hdr{position:fixed;top:0;left:0;right:0;height:var(--hdr);background:var(--primary-d);
+  color:#fff;display:flex;align-items:center;gap:8px;padding:0 12px;z-index:100;box-shadow:0 2px 6px rgba(0,0,0,.3)}
+#hdr h1{font-size:15px;font-weight:bold;flex:0 0 auto}
+.nav-tabs{display:flex;gap:4px;flex:1}
+.nav-tab{padding:5px 10px;border-radius:20px;color:rgba(255,255,255,.75);font-size:12px;transition:.2s}
+.nav-tab:hover{background:rgba(255,255,255,.15);color:#fff}
+.nav-tab.active{background:#fff;color:var(--primary-d);font-weight:bold}
+#toggle-sb{background:none;border:none;color:#fff;font-size:18px;width:32px;height:32px}
+
+.layout{display:flex;margin-top:var(--hdr);height:calc(100vh - var(--hdr))}
+#sidebar{width:var(--sidebar);flex:0 0 auto;background:#fff;border-right:1px solid var(--border);
+  display:flex;flex-direction:column;overflow:hidden;transition:width .2s}
+#sidebar.collapsed{width:0}
+.sb-head{padding:10px 10px 6px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.sb-head span{font-weight:bold;font-size:12px;color:var(--muted)}
+.btn-sm{padding:3px 8px;background:var(--primary);color:#fff;border-radius:12px;font-size:11px}
+.btn-sm:hover{background:var(--primary-d)}
+#veg-list{flex:1;overflow-y:auto;padding:4px 0}
+.veg-item{display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:pointer;border-left:3px solid transparent;transition:.15s}
+.veg-item:hover{background:var(--bg)}
+.veg-item.active{background:#e8f5e8;border-left-color:var(--primary)}
+.veg-dot{width:10px;height:10px;border-radius:50%;flex:0 0 auto}
+.veg-name{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+#main{flex:1;overflow:auto}
+
+/* Cards & panels */
+.card{background:var(--surface);border-radius:var(--r);border:1px solid var(--border);padding:14px;margin:10px}
+.panel-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.badge{display:inline-block;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:bold}
+.badge-plan{background:#dbeafe;color:#1d4ed8}
+.badge-actual{background:#dcfce7;color:#15803d}
+
+/* Buttons */
+.btn{padding:7px 16px;border-radius:6px;font-size:13px;font-weight:bold;transition:.2s}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-d)}
+.btn-danger{background:#dc2626;color:#fff}
+.btn-danger:hover{background:#b91c1c}
+.btn-outline{background:none;border:1px solid var(--border);color:var(--muted)}
+.btn-outline:hover{border-color:var(--primary);color:var(--primary)}
+.btn-icon{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px}
+.btn-icon:hover{background:var(--bg)}
+
+/* Timeline */
+#timeline-wrap{padding:10px}
+.tl-scroll{overflow-x:auto}
+.tl-table{border-collapse:collapse;white-space:nowrap}
+.tl-table th,.tl-table td{border:1px solid var(--border);padding:0}
+.tl-veg-col{position:sticky;left:0;background:#fff;z-index:10;min-width:90px;max-width:90px;padding:4px 6px;
+  font-size:11px;font-weight:bold;vertical-align:middle;border-right:2px solid var(--primary-l)}
+.tl-head-veg{background:var(--primary-d);color:#fff;text-align:center;padding:4px 6px;font-size:11px;
+  position:sticky;left:0;z-index:20}
+.tl-date-head{min-width:40px;max-width:40px;text-align:center;padding:2px;font-size:10px;
+  background:var(--primary-d);color:rgba(255,255,255,.8);vertical-align:middle;cursor:default}
+.tl-date-head.today{background:#e8952a;color:#fff;font-weight:bold}
+.tl-date-head.weekend{background:#2a4a6a;color:rgba(255,255,255,.8)}
+.tl-cell{min-width:40px;max-width:40px;height:28px;vertical-align:middle;text-align:center;
+  cursor:pointer;transition:.15s;position:relative}
+.tl-cell:hover{background:#e8f5e8 !important}
+.tl-cell.today{background:#fffbeb !important}
+.tl-cell.has-data{background:#f0faf0}
+.tl-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin:0 1px}
+.tl-veg-btn{display:flex;align-items:center;gap:4px;width:100%;text-align:left}
+
+/* Popup */
+#popup{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4);z-index:200;
+  display:flex;align-items:center;justify-content:center;display:none}
+#popup.show{display:flex}
+.popup-box{background:#fff;border-radius:var(--r);max-width:420px;width:94%;max-height:80vh;
+  overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.25)}
+.popup-hdr{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;background:#fff;z-index:1}
+.popup-body{padding:14px}
+.popup-entry{padding:8px 0;border-bottom:1px solid var(--border)}
+.popup-entry:last-child{border-bottom:none}
+
+/* Detail view */
+#detail-wrap{padding:10px}
+.veg-header{background:var(--surface);border-radius:var(--r);border:1px solid var(--border);
+  padding:14px;margin-bottom:10px;display:flex;align-items:center;gap:12px}
+.veg-icon{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:20px;flex:0 0 auto}
+.tab-bar{display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:10px}
+.tab-btn{padding:8px 16px;font-size:12px;font-weight:bold;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px;transition:.15s}
+.tab-btn.active{color:var(--primary);border-bottom-color:var(--primary)}
+.tab-btn:hover{color:var(--primary)}
+.field-group{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px}
+.field-item label{font-size:11px;color:var(--muted)}
+.field-item .val{font-size:13px;color:var(--text);min-height:18px;padding:2px 0;word-break:break-all}
+.field-item.full{grid-column:1/-1}
+.section-card{background:var(--surface);border-radius:var(--r);border:1px solid var(--border);padding:12px;margin-bottom:8px}
+.section-title{font-size:12px;font-weight:bold;color:var(--primary-d);margin-bottom:8px;
+  padding-bottom:4px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+
+/* Schedule list */
+.sched-item{background:var(--surface);border-radius:var(--r);border:1px solid var(--border);
+  padding:10px 12px;margin-bottom:6px;display:flex;gap:10px}
+.sched-item .left{flex:0 0 auto;text-align:center;min-width:52px}
+.sched-item .date{font-size:14px;font-weight:bold;color:var(--primary-d)}
+.sched-item .time{font-size:10px;color:var(--muted)}
+.sched-item .right{flex:1;min-width:0}
+.sched-item .act{font-weight:bold;font-size:13px;margin-bottom:3px}
+.sched-item .memo{font-size:11px;color:var(--muted)}
+.sched-item .photo-thumb{width:56px;height:56px;object-fit:cover;border-radius:4px;margin-top:4px;margin-right:3px}
+.sched-item .photo-thumbs{display:flex;flex-wrap:wrap;gap:3px;margin-top:4px}
+.sched-actions{display:flex;gap:4px;margin-top:4px}
+
+/* Photos grid (form & detail) */
+.photos-grid{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.photo-item{position:relative;width:80px;height:80px;flex:0 0 auto}
+.photo-item img{width:80px;height:80px;object-fit:cover;border-radius:4px;display:block}
+.photo-del{position:absolute;top:-5px;right:-5px;background:#dc2626;color:#fff;border-radius:50%;
+  width:18px;height:18px;font-size:11px;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;border:none;line-height:1;padding:0}
+.detail-photos{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.detail-photos img{max-width:48%;max-height:200px;border-radius:6px;object-fit:cover;cursor:pointer}
+
+/* Harvest table */
+.harvest-table{width:100%;border-collapse:collapse;font-size:12px}
+.harvest-table th{background:var(--primary-d);color:#fff;padding:6px 8px;text-align:left}
+.harvest-table td{padding:5px 8px;border-bottom:1px solid var(--border)}
+.harvest-table tr:hover td{background:var(--bg)}
+.harvest-total{font-weight:bold;background:#e8f5e8 !important}
+
+/* Form */
+#form-wrap{padding:10px;max-width:600px}
+.form-row{margin-bottom:10px}
+.form-row-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.photo-preview{max-width:200px;max-height:150px;border-radius:6px;margin-top:6px}
+.photo-add-btn{margin-top:6px;font-size:12px;padding:5px 12px}
+.gphoto-link{display:inline-flex;align-items:center;gap:4px;margin-top:4px;font-size:11px;color:#1a73e8;
+  text-decoration:none;border:1px solid #bfdbfe;background:#eff6ff;border-radius:12px;padding:2px 10px}
+.gphoto-link:hover{background:#dbeafe}
+
+/* 実施事項 複数選択グリッド */
+.act-check-grid{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.act-check-label{display:inline-flex;align-items:center;padding:5px 11px;border:1.5px solid var(--border);
+  border-radius:16px;cursor:pointer;font-size:12px;user-select:none;transition:.15s;background:#fff}
+.act-check-label:hover{border-color:var(--primary);background:#f0f8f0}
+.act-check-label.checked{background:var(--primary);color:#fff;border-color:var(--primary-d)}
+.act-check-label input[type=checkbox]{display:none}
+.form-actions{display:flex;gap:8px;margin-top:16px;padding-top:10px;border-top:1px solid var(--border)}
+
+/* Variety tags */
+.variety-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.vtag{padding:2px 8px;background:var(--primary-l);color:var(--primary-d);border-radius:12px;font-size:11px}
+
+/* Settings */
+#settings-wrap{padding:10px;max-width:500px}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--primary-l);border-radius:3px}
+
+/* Tooltip */
+.tl-cell[data-tip]:hover::after{content:attr(data-tip);position:absolute;bottom:100%;left:50%;transform:translateX(-50%);
+  background:rgba(0,0,0,.8);color:#fff;padding:4px 8px;border-radius:4px;white-space:nowrap;font-size:11px;z-index:50;pointer-events:none}
+
+/* Responsive */
+@media(max-width:640px){
+  .nav-tabs .nav-tab span{display:none}
+  #sidebar{position:absolute;top:var(--hdr);bottom:0;left:0;z-index:50;box-shadow:2px 0 8px rgba(0,0,0,.2)}
+  #sidebar.collapsed{width:0}
+  .field-group{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div id="hdr">
+  <button id="toggle-sb">☰</button>
+  <h1>🌱 家庭菜園管理</h1>
+  <span id="version-badge" style="font-size:10px;color:rgba(255,255,255,.55);flex:0 0 auto;margin-left:2px">v20260718</span>
+  <nav class="nav-tabs">
+    <button class="nav-tab active" data-v="timeline">📅 一覧</button>
+    <button class="nav-tab" data-v="detail">🥬 野菜詳細</button>
+    <button class="nav-tab" data-v="add-sched">➕ 記録追加</button>
+    <button class="nav-tab" data-v="add-harvest">🧺 収穫記録</button>
+    <button class="nav-tab" data-v="settings">⚙️ 設定</button>
+  </nav>
+  <span id="sync-badge" title="" style="margin-left:8px;font-size:15px;flex:0 0 auto"></span>
+</div>
+
+<div class="layout">
+  <aside id="sidebar">
+    <div class="sb-head">
+      <span>野菜一覧</span>
+      <button class="btn-sm" id="add-veg-btn">＋ 追加</button>
+    </div>
+    <div id="veg-list"></div>
+  </aside>
+  <main id="main"></main>
+</div>
+
+<div id="popup">
+  <div class="popup-box">
+    <div class="popup-hdr">
+      <strong id="popup-title"></strong>
+      <button class="btn-icon" id="popup-close">✕</button>
+    </div>
+    <div class="popup-body" id="popup-body"></div>
+  </div>
+</div>
+
+<!-- ライトボックス（写真全画面表示） -->
+<div id="lightbox" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.92);z-index:400;align-items:center;justify-content:center;touch-action:pinch-zoom">
+  <img id="lightbox-img" style="max-width:95vw;max-height:88vh;border-radius:6px;object-fit:contain;user-select:none">
+  <div id="lightbox-counter" style="position:absolute;top:14px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,.8);font-size:13px;background:rgba(0,0,0,.4);padding:2px 10px;border-radius:10px"></div>
+  <button id="lightbox-close" style="position:absolute;top:12px;right:14px;background:rgba(255,255,255,.18);color:#fff;border:none;border-radius:50%;width:38px;height:38px;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
+  <button id="lightbox-prev" style="position:absolute;left:8px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.18);color:#fff;border:none;border-radius:50%;width:44px;height:44px;font-size:28px;cursor:pointer;display:none;align-items:center;justify-content:center">‹</button>
+  <button id="lightbox-next" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.18);color:#fff;border:none;border-radius:50%;width:44px;height:44px;font-size:28px;cursor:pointer;display:none;align-items:center;justify-content:center">›</button>
+</div>
+
+<script>
+// ===================== CONSTANTS =====================
+const VEG_COLORS=['#e8a020','#5d9e00','#1a7a2a','#c4822a','#6b2d8b','#c82020','#e05050',
+  '#a02020','#2d8b2d','#1a7a50','#d04070','#d06000','#c04040','#c87020','#2a7a00','#b05080',
+  '#b0b030','#20a050','#60b060','#808080'];
+
+const VEG_EMOJIS=['🌽','🫘','🥒','🥔','🍆','🍅','🍅','🍅','🌿','🥒','🍉','🎃','🫑','🫑','🫑','🍠','🧄','🌿','🧅','🌱'];
+
+const ACT_TYPES=['土作・肥料設計','畝立て','撒種・芋','苗定植','水やり','仕立','施肥','芽かき','葉かき','散布','摘花・果','人工授粉','収穫','保存方法','成長観測','その他'];
+
+const DEFAULT_VEGS=[
+  {id:'v1',name:'とうもろこし',varieties:['ゴールドバンタム'],
+   tax:{order:'イネ目',family:'イネ科',genus:'トウモロコシ属'},
+   traits:{origin:'中南米',coldHeat:'暑さに強い',water:'多め',fertilizer:'多め',other:''},
+   mgmt:{soil:'',ridge:'畝幅90cm 株間30cm',sow:'深さ3cm',transplant:'',water:'乾燥に注意',train:'分けつ枝除去',fertilize:'追肥3回',bud:'分けつ枝を取る',leaf:'',spray:'',flowerFruit:'雄穂確認後人工授粉',harvest:'ひげが茶色になったら',storage:'収穫後すぐ調理',expected:'1株2本'},
+   color:0},
+  {id:'v2',name:'枝豆',varieties:['湯上り娘'],
+   tax:{order:'マメ目',family:'マメ科',genus:'ダイズ属'},
+   traits:{origin:'中国',coldHeat:'暑さに強い',water:'普通',fertilizer:'少なめ',other:'窒素固定'},
+   mgmt:{soil:'',ridge:'畝幅60cm 株間20cm',sow:'深さ2cm',transplant:'',water:'開花時に多め',train:'',fertilize:'少なめ',bud:'',leaf:'',spray:'',flowerFruit:'',harvest:'莢が膨らんだら',storage:'冷蔵保存',expected:'1株50-100莢'},
+   color:1},
+  {id:'v3',name:'ズッキーニ',varieties:['グリーンポート１','オーラム黄','ダイナーEX'],
+   tax:{order:'ウリ目',family:'ウリ科',genus:'カボチャ属'},
+   traits:{origin:'中南米',coldHeat:'暑さに比較的強い',water:'普通',fertilizer:'普通',other:''},
+   mgmt:{soil:'',ridge:'畝幅120cm 株間60cm',sow:'',transplant:'行燈で保護',water:'乾燥注意',train:'蔓の誘引',fertilize:'2週毎追肥',bud:'',leaf:'下葉除去',spray:'うどん粉病注意',flowerFruit:'人工授粉必要',harvest:'20cm前後で収穫',storage:'冷蔵1週間',expected:'1株30-40本'},
+   color:2},
+  {id:'v4',name:'じゃがいも',varieties:['きたあかり','アンデスレッド'],
+   tax:{order:'ナス目',family:'ナス科',genus:'ナス属'},
+   traits:{origin:'南米アンデス',coldHeat:'暑さに弱い',water:'普通',fertilizer:'普通',other:'塊茎栽培'},
+   mgmt:{soil:'pH5.5-6',ridge:'畝幅60cm 株間30cm',sow:'種芋5cm深',transplant:'',water:'乾燥気味',train:'土寄せ2回',fertilize:'元肥多め',bud:'芽かき2-3本に',leaf:'',spray:'疫病注意',flowerFruit:'',harvest:'茎葉が黄化したら',storage:'涼しい暗所',expected:'1株500g-1kg'},
+   color:3},
+  {id:'v5',name:'なす',varieties:['庄やなす','PC筑陽','とろーり旨なす','千両2号'],
+   tax:{order:'ナス目',family:'ナス科',genus:'ナス属'},
+   traits:{origin:'インド',coldHeat:'暑さに強い',water:'多め',fertilizer:'多め',other:''},
+   mgmt:{soil:'pH6-6.5',ridge:'畝幅60cm 株間50cm',sow:'',transplant:'支柱必要',water:'多め乾燥NG',train:'3本仕立',fertilize:'2週毎追肥',bud:'1番花下の脇芽除去',leaf:'古葉除去',spray:'',flowerFruit:'1番果は小さいうちに摘果',harvest:'長さ12-15cmで',storage:'冷蔵1週間',expected:'1株20-30個'},
+   color:4},
+  {id:'v6',name:'トマト',varieties:['和恋花','麗夏','世界一'],
+   tax:{order:'ナス目',family:'ナス科',genus:'ナス属'},
+   traits:{origin:'南米アンデス',coldHeat:'暑さに弱',water:'控えめ',fertilizer:'控えめ',other:'雨除け推奨'},
+   mgmt:{soil:'pH6-6.5',ridge:'畝幅60cm 株間50cm',sow:'',transplant:'支柱必要 合掌式',water:'乾燥気味',train:'1本仕立',fertilize:'第1花着果後追肥',bud:'全脇芽かき',leaf:'下葉除去',spray:'疫病・青枯注意',flowerFruit:'第1花房は摘果なし',harvest:'赤くなったら',storage:'常温保存',expected:'1株30-50個'},
+   color:5},
+  {id:'v7',name:'ミニトマト',varieties:['アイコ','プチぷよ','チカ','オレンジチカ','トスカーナ紫'],
+   tax:{order:'ナス目',family:'ナス科',genus:'ナス属'},
+   traits:{origin:'南米アンデス',coldHeat:'暑さに比較的強い',water:'控えめ',fertilizer:'控えめ',other:''},
+   mgmt:{soil:'pH6-6.5',ridge:'畝幅60cm 株間50cm',sow:'',transplant:'支柱必要 合掌式',water:'乾燥気味',train:'2本仕立',fertilize:'第1花着果後追肥',bud:'主幹以外の脇芽かき',leaf:'下葉除去',spray:'',flowerFruit:'',harvest:'赤くなったら',storage:'常温保存',expected:'1株100個以上'},
+   color:6},
+  {id:'v8',name:'トマト(地這)',varieties:['甘太郎Jr','CF桃太郎ヨーク'],
+   tax:{order:'ナス目',family:'ナス科',genus:'ナス属'},
+   traits:{origin:'南米アンデス',coldHeat:'暑さに強め',water:'控えめ',fertilizer:'控えめ',other:'地面を這わせる栽培'},
+   mgmt:{soil:'pH6-6.5',ridge:'畝幅120cm 株間50cm',sow:'',transplant:'支柱不要',water:'乾燥気味',train:'蔓おろし',fertilize:'2週毎追肥',bud:'脇芽かき',leaf:'',spray:'',flowerFruit:'',harvest:'赤くなったら',storage:'常温保存',expected:'1株20-30個'},
+   color:7},
+  {id:'v9',name:'オクラ',varieties:['まるみ','大奥'],
+   tax:{order:'アオイ目',family:'アオイ科',genus:'トロロアオイ属'},
+   traits:{origin:'アフリカ',coldHeat:'暑さに強い',water:'普通',fertilizer:'普通',other:''},
+   mgmt:{soil:'pH6-6.5',ridge:'畝幅60cm 株間30cm',sow:'',transplant:'行燈で保護',water:'乾燥注意',train:'',fertilize:'2週毎追肥',bud:'',leaf:'収穫後下葉除去',spray:'',flowerFruit:'',harvest:'5-7cmで収穫',storage:'冷蔵1週間',expected:'1株50個以上'},
+   color:8},
+  {id:'v10',name:'胡瓜',varieties:['夏涼み(蔓)','夏涼み(3本)','ニーナZ(3本)','ニーナZ(蔓)','なつここあ'],
+   tax:{order:'ウリ目',family:'ウリ科',genus:'キュウリ属'},
+   traits:{origin:'インド',coldHeat:'暑さに強い',water:'多め',fertilizer:'多め',other:''},
+   mgmt:{soil:'pH6-6.5',ridge:'畝幅60cm 株間50cm',sow:'',transplant:'支柱必要',water:'多め毎日',train:'蔓誘引 蔓おろし',fertilize:'毎週追肥',bud:'',leaf:'老葉除去',spray:'うどん粉病注意',flowerFruit:'',harvest:'20-22cmで収穫',storage:'冷蔵1週間',expected:'1株30-50本'},
+   color:9},
+  {id:'v11',name:'小玉スイカ',varieties:['なつここあ','紅小玉'],
+   tax:{order:'ウリ目',family:'ウリ科',genus:'スイカ属'},
+   traits:{origin:'アフリカ',coldHeat:'暑さに強い',water:'控えめ',fertilizer:'普通',other:''},
+   mgmt:{soil:'pH6-6.5',ridge:'畝幅200cm 株間100cm',sow:'',transplant:'合掌式支柱',water:'着果後控えめ',train:'3本仕立 蔓誘引',fertilize:'着果後追肥',bud:'',leaf:'',spray:'',flowerFruit:'人工授粉必要',harvest:'受粉後35-40日',storage:'常温保存',expected:'1株3-5個'},
+   color:10},
+  {id:'v12',name:'ミニかぼちゃ',varieties:['ほっこり姫'],
+   tax:{order:'ウリ目',family:'ウリ科',genus:'カボチャ属'},
+   traits:{origin:'中南米',coldHeat:'暑さに強い',water:'控えめ',fertilizer:'少なめ',other:''},
+   mgmt:{soil:'pH6-6.5',ridge:'畝幅200cm 株間100cm',sow:'',transplant:'合掌式支柱',water:'着果後控えめ',train:'3本仕立',fertilize:'少なめ',bud:'',leaf:'',spray:'',flowerFruit:'人工授粉',harvest:'受粉後35-40日',storage:'常温キュアリング後',expected:'1株3-5個'},
+   color:11},
+  {id:'v13',name:'万願寺',varieties:['万願寺'],
+   tax:{order:'ナス目',family:'ナス科',genus:'トウガラシ属'},
+   traits:{origin:'京都',coldHeat:'暑さに強い',water:'普通',fertilizer:'普通',other:''},
+   mgmt:{soil:'pH6-6.5',ridge:'畝幅60cm 株間50cm',sow:'',transplant:'支柱必要',water:'普通',train:'3本仕立',fertilize:'2週毎追肥',bud:'1番花下脇芽除去',leaf:'',spray:'',flowerFruit:'',harvest:'長さ15-20cmで',storage:'冷蔵1週間',expected:'1株50個以上'},
+   color:12},
+  {id:'v14',name:'パブリカ',varieties:['フルーピー黄','フルーピー赤'],
+   tax:{order:'ナス目',family:'ナス科',genus:'トウガラシ属'},
+   traits:{origin:'中南米',coldHeat:'暑さに比較的強い',water:'普通',fertilizer:'普通',other:''},
+   mgmt:{soil:'pH6-6.5',ridge:'畝幅60cm 株間50cm',sow:'',transplant:'支柱必要',water:'普通',train:'3本仕立',fertilize:'2週毎追肥',bud:'1番花下脇芽除去',leaf:'',spray:'',flowerFruit:'',harvest:'着色してから',storage:'冷蔵1週間',expected:'1株10-15個'},
+   color:13},
+  {id:'v15',name:'ピーマン',varieties:['京ひかり'],
+   tax:{order:'ナス目',family:'ナス科',genus:'トウガラシ属'},
+   traits:{origin:'中南米',coldHeat:'暑さに強い',water:'普通',fertilizer:'普通',other:''},
+   mgmt:{soil:'pH6-6.5',ridge:'畝幅60cm 株間50cm',sow:'',transplant:'支柱必要',water:'普通',train:'3本仕立',fertilize:'2週毎追肥',bud:'1番花下脇芽除去',leaf:'',spray:'',flowerFruit:'1番果は摘果',harvest:'緑色で収穫',storage:'冷蔵1週間',expected:'1株30-50個'},
+   color:14},
+  {id:'v16',name:'さつまいも',varieties:[],
+   tax:{order:'ナス目',family:'ヒルガオ科',genus:'サツマイモ属'},
+   traits:{origin:'中南米',coldHeat:'暑さに強い',water:'少なめ',fertilizer:'少なめ',other:''},
+   mgmt:{soil:'pH5.5-6 痩せ土でOK',ridge:'畝幅60cm 株間30cm',sow:'',transplant:'苗の斜め植え',water:'少なめ',train:'蔓返し',fertilize:'少なめ',bud:'',leaf:'蔓返しで通気',spray:'',flowerFruit:'',harvest:'葉が黄化したら',storage:'キュアリング後常温',expected:'1株3-5本'},
+   color:15},
+  {id:'v17',name:'ニンニク',varieties:[],
+   tax:{order:'キジカクシ目',family:'ヒガンバナ科',genus:'ネギ属'},
+   traits:{origin:'中央アジア',coldHeat:'耐寒性高い',water:'普通',fertilizer:'普通',other:''},
+   mgmt:{soil:'pH6-6.5',ridge:'畝幅60cm 株間15cm',sow:'10月植え付け',transplant:'',water:'乾燥注意',train:'',fertilize:'春に追肥',bud:'',leaf:'スケープ除去',spray:'',flowerFruit:'',harvest:'葉が2/3枯れたら',storage:'乾燥保存',expected:'1球から1球'},
+   color:16},
+  {id:'v18',name:'エンサイ',varieties:[],
+   tax:{order:'ナス目',family:'ヒルガオ科',genus:'サツマイモ属'},
+   traits:{origin:'東南アジア',coldHeat:'暑さに強い',water:'多め',fertilizer:'普通',other:''},
+   mgmt:{soil:'pH6-6.5',ridge:'畝幅60cm 株間20cm',sow:'',transplant:'',water:'多め',train:'',fertilize:'2週毎追肥',bud:'',leaf:'',spray:'',flowerFruit:'',harvest:'新芽20cmで摘み取り',storage:'冷蔵1週間',expected:'継続収穫'},
+   color:17},
+  {id:'v19',name:'一本葱',varieties:[],
+   tax:{order:'キジカクシ目',family:'ヒガンバナ科',genus:'ネギ属'},
+   traits:{origin:'中国',coldHeat:'耐寒性高い',water:'普通',fertilizer:'普通',other:''},
+   mgmt:{soil:'pH6-6.5',ridge:'深溝栽培 株間5cm',sow:'',transplant:'',water:'普通',train:'土寄せ3回',fertilize:'月1回追肥',bud:'',leaf:'',spray:'',flowerFruit:'',harvest:'直径2cm以上で',storage:'冷暗所',expected:'1株1本'},
+   color:18},
+  {id:'v20',name:'その他',varieties:[],
+   tax:{order:'',family:'',genus:''},
+   traits:{origin:'',coldHeat:'',water:'',fertilizer:'',other:''},
+   mgmt:{soil:'',ridge:'',sow:'',transplant:'',water:'',train:'',fertilize:'',bud:'',leaf:'',spray:'',flowerFruit:'',harvest:'',storage:'',expected:''},
+   color:19}
+];
+
+// Schedule seed data [vid, date, activity, memo]
+const SCHED_SEED=[
+['v4','2026-02-17','畝たて・マルチ',''],['v5','2026-02-17','畝たて',''],
+['v1','2026-02-26','催芽',''],
+['v4','2026-03-02','種芋植え付け',''],
+['v1','2026-03-05','土づくり・播種(pot)',''],['v2','2026-03-05','土づくり',''],
+['v3','2026-03-05','土づくり',''],['v4','2026-03-05','不織布かけ',''],
+['v1','2026-03-07','発芽',''],['v2','2026-03-07','催芽',''],
+['v1','2026-03-14','畝たて・マルチ',''],['v2','2026-03-14','播種(pot)',''],
+['v3','2026-03-14','畝たて・マルチ',''],['v4','2026-03-14','トンネル',''],
+['v2','2026-03-20','畝たて・マルチ',''],['v4','2026-03-20','発芽確認',''],
+['v6','2026-03-22','畝たて',''],['v7','2026-03-22','畝たて',''],
+['v10','2026-03-22','畝たて',''],['v11','2026-03-22','畝たて',''],
+['v12','2026-03-22','畝たて',''],['v13','2026-03-22','畝たて',''],
+['v14','2026-03-22','畝たて',''],['v15','2026-03-22','畝たて',''],
+['v1','2026-03-28','植穴明け',''],['v4','2026-03-28','芽掻き',''],
+['v1','2026-03-29','定植・トンネル',''],['v2','2026-03-29','定植・トンネル',''],
+['v1','2026-04-11','土寄せ',''],['v2','2026-04-11','トンネル⇒防虫ネット',''],
+['v3','2026-04-11','苗購入・定植・行燈',''],['v5','2026-04-11','苗購入・定植・トンネル',''],
+['v6','2026-04-11','苗購入・定植・トンネル',''],['v7','2026-04-11','苗購入・定植・トンネル',''],
+['v9','2026-04-11','苗購入・定植・行燈',''],
+['v10','2026-04-12','苗購入・定植・トンネル',''],['v11','2026-04-12','苗購入・定植・トンネル',''],
+['v12','2026-04-12','苗購入・定植・トンネル',''],['v13','2026-04-12','苗購入・定植・トンネル',''],
+['v14','2026-04-12','苗購入・定植・トンネル',''],['v15','2026-04-12','苗購入・定植・トンネル',''],
+['v4','2026-04-14','支柱・ロープ',''],
+['v1','2026-04-17','成長観測',''],['v2','2026-04-17','成長観測',''],
+['v3','2026-04-17','成長観測',''],['v4','2026-04-17','成長観測',''],
+['v5','2026-04-17','成長観測',''],['v6','2026-04-17','成長観測',''],
+['v7','2026-04-17','成長観測',''],['v9','2026-04-17','成長観測',''],
+['v10','2026-04-17','成長観測',''],['v11','2026-04-17','成長観測',''],
+['v12','2026-04-17','成長観測',''],['v13','2026-04-17','成長観測',''],
+['v14','2026-04-17','成長観測',''],['v15','2026-04-17','成長観測',''],
+['v16','2026-04-17','成長観測',''],
+['v1','2026-04-21','突き抜け7本',''],
+['v1','2026-04-25','追肥・土寄せ・分けつ枝取',''],['v3','2026-04-25','行燈拡大',''],
+['v5','2026-04-25','追肥・棚作成',''],['v6','2026-04-25','合掌たて',''],
+['v7','2026-04-25','芽掻き・合掌たて',''],['v10','2026-04-25','追肥・合掌たて',''],
+['v11','2026-04-25','合掌たて',''],['v12','2026-04-25','合掌たて',''],
+['v13','2026-04-25','合掌たて',''],['v14','2026-04-25','合掌たて',''],
+['v15','2026-04-25','合掌たて',''],
+['v3','2026-04-26','行燈→トンネル',''],['v5','2026-04-26','誘引ひも',''],
+['v7','2026-04-26','誘引ひも',''],
+['v1','2026-04-29','雄穂確認',''],
+['v1','2026-05-02','デナポン１',''],['v3','2026-05-02','マルチ焼対策・水・ニーム',''],
+['v4','2026-05-02','ニーム',''],['v5','2026-05-02','トンネル開・仕立・横棒設置・ニーム・水やり',''],
+['v6','2026-05-02','トンネル開・仕立・ニーム',''],['v7','2026-05-02','トンネル開・仕立・ニーム',''],
+['v10','2026-05-02','トンネル開・仕立・ニーム・水やり',''],
+['v11','2026-05-02','トンネル開・仕立・ニーム',''],['v12','2026-05-02','トンネル開・仕立・ニーム',''],
+['v13','2026-05-02','ニーム',''],['v14','2026-05-02','ニーム',''],['v15','2026-05-02','ニーム',''],
+['v1','2026-05-03','追肥/デナポン　長畝左右1-9 左21 短畝左1-3右2',''],
+['v3','2026-05-03','第一花摘花・トンネル確認',''],
+['v5','2026-05-03','追肥・トンネル掛',''],['v10','2026-05-03','追肥',''],
+['v1','2026-05-05','トンネル開',''],['v3','2026-05-05','トンネル開',''],
+['v5','2026-05-05','トンネル開',''],['v13','2026-05-05','トンネル開',''],
+['v14','2026-05-05','トンネル開',''],['v15','2026-05-05','トンネル開',''],
+['v5','2026-05-06','MG植',''],['v6','2026-05-06','MG植',''],
+['v7','2026-05-06','MG植',''],['v10','2026-05-06','MG植',''],
+['v11','2026-05-06','MG植',''],['v12','2026-05-06','MG植',''],
+['v13','2026-05-06','MG植',''],['v14','2026-05-06','MG植',''],
+['v15','2026-05-06','MG植',''],['v16','2026-05-06','前作葱撤去',''],
+['v5','2026-05-08','仕立･ライン張替',''],['v6','2026-05-08','仕立',''],
+['v7','2026-05-08','仕立',''],['v10','2026-05-08','仕立',''],
+['v11','2026-05-08','仕立',''],['v12','2026-05-08','仕立',''],
+['v16','2026-05-08','根撤去・耕作',''],
+['v1','2026-05-09','風対策・ロープ',''],['v3','2026-05-09','トンネル',''],
+['v5','2026-05-09','誘引・防風',''],['v6','2026-05-09','仕立・防風',''],
+['v7','2026-05-09','仕立・防風',''],['v10','2026-05-09','仕立・防風',''],
+['v11','2026-05-09','仕立・防風',''],['v12','2026-05-09','仕立・防風',''],
+['v13','2026-05-09','誘引・防風',''],['v14','2026-05-09','誘引・防風','赤折ってしまう'],
+['v15','2026-05-09','誘引・防風',''],['v17','2026-05-09','試堀',''],
+['v1','2026-05-10','水・ニーム',''],['v2','2026-05-10','水・ニーム・草取',''],
+['v3','2026-05-10','水・ニーム・トンネル開',''],['v5','2026-05-10','水・ニーム',''],
+['v6','2026-05-10','水・ニーム',''],['v7','2026-05-10','水・ニーム・蔓おろしに',''],
+['v8','2026-05-10','定植',''],['v9','2026-05-10','水・ニーム',''],
+['v10','2026-05-10','水・ニーム',''],['v11','2026-05-10','水・ニーム',''],
+['v12','2026-05-10','水・ニーム',''],['v13','2026-05-10','水・ニーム',''],
+['v14','2026-05-10','水・ニーム',''],['v15','2026-05-10','水・ニーム',''],
+['v18','2026-05-10','定植',''],
+['v1','2026-05-14','ゼンダーリ',''],['v3','2026-05-14','収穫２・人工授粉',''],
+['v5','2026-05-14','仕立・ゼンダーリ',''],['v6','2026-05-14','仕立・ゼンダーリ',''],
+['v7','2026-05-14','仕立・ゼンダーリ',''],['v10','2026-05-14','仕立・ゼンダーリ',''],
+['v11','2026-05-14','仕立・ゼンダーリ',''],['v12','2026-05-14','仕立・ゼンダーリ',''],
+['v13','2026-05-14','仕立・ゼンダーリ',''],['v14','2026-05-14','仕立・ゼンダーリ',''],
+['v15','2026-05-14','仕立・ゼンダーリ',''],['v17','2026-05-14','収穫',''],
+['v1','2026-05-15','芽掻き・デナポン',''],['v3','2026-05-15','人工授粉',''],
+['v5','2026-05-15','水やり',''],['v6','2026-05-15','仕立',''],
+['v7','2026-05-15','仕立',''],['v8','2026-05-15','水やり',''],
+['v10','2026-05-15','仕立・水やり',''],['v11','2026-05-15','仕立',''],
+['v12','2026-05-15','仕立',''],['v17','2026-05-15','ロープ外し',''],
+['v18','2026-05-15','水やり',''],['v20','2026-05-15','雑草対策',''],
+['v1','2026-05-16','仕立',''],['v3','2026-05-16','人工授粉',''],
+['v5','2026-05-16','仕立',''],['v6','2026-05-16','仕立',''],
+['v7','2026-05-16','仕立',''],['v10','2026-05-16','仕立',''],
+['v11','2026-05-16','仕立',''],['v12','2026-05-16','仕立',''],
+['v13','2026-05-16','仕立',''],['v14','2026-05-16','仕立',''],
+['v15','2026-05-16','仕立',''],['v17','2026-05-16','収穫',''],
+['v19','2026-05-16','苗購入・展開',''],
+['v1','2026-05-17','雌補確認１',''],['v4','2026-05-17','マルチ一部撤去',''],
+['v17','2026-05-17','収穫',''],
+['v1','2026-05-18','水',''],['v2','2026-05-18','水',''],
+['v3','2026-05-18','水',''],['v4','2026-05-18','水',''],
+['v5','2026-05-18','水',''],['v6','2026-05-18','水',''],
+['v7','2026-05-18','水',''],['v8','2026-05-18','水',''],
+['v9','2026-05-18','水',''],['v10','2026-05-18','水',''],
+['v11','2026-05-18','水',''],['v12','2026-05-18','水',''],
+['v13','2026-05-18','水',''],['v14','2026-05-18','水',''],
+['v15','2026-05-18','水',''],
+['v1','2026-05-20','ロープ加・追肥','雌補確認6'],
+['v3','2026-05-20','収穫5・人工授粉',''],
+['v5','2026-05-20','仕立・追肥',''],['v6','2026-05-20','仕立',''],
+['v7','2026-05-20','仕立',''],['v10','2026-05-20','仕立・追肥',''],
+['v11','2026-05-20','仕立',''],['v12','2026-05-20','仕立',''],
+['v13','2026-05-20','仕立・追肥',''],['v14','2026-05-20','仕立・追肥',''],
+['v15','2026-05-20','仕立・追肥',''],
+['v1','2026-05-23','ゼンダーリ','雌穂たくさん'],
+['v3','2026-05-23','受粉・ゼンダーリ・収穫',''],
+['v5','2026-05-23','ゼンダーリ・仕立・下葉摘葉',''],
+['v6','2026-05-23','ゼンダーリ・仕立・下葉摘葉',''],
+['v7','2026-05-23','ゼンダーリ・仕立・下葉摘葉',''],
+['v8','2026-05-23','仕立',''],['v9','2026-05-23','ゼンダーリ・ニーム',''],
+['v10','2026-05-23','ゼンダーリ・ニーム・仕立・下葉摘葉',''],
+['v11','2026-05-23','ゼンダーリ・ニーム・成長点折・受粉',''],
+['v12','2026-05-23','ゼンダーリ・ニーム・下葉摘葉',''],
+['v13','2026-05-23','ゼンダーリ・ニーム',''],['v14','2026-05-23','ゼンダーリ・ニーム',''],
+['v15','2026-05-23','ゼンダーリ・ニーム',''],
+['v16','2026-05-23','畝立て・マルチ',''],['v17','2026-05-23','収穫',''],
+['v1','2026-05-24','分けつ枝取',''],['v3','2026-05-24','受粉・下葉摘葉・収穫',''],
+['v5','2026-05-24','収穫(千両2号)・筑陽折枝補修',''],
+['v6','2026-05-24','仕立・摘果',''],['v7','2026-05-24','仕立',''],
+['v8','2026-05-24','仕立',''],['v10','2026-05-24','仕立・収穫',''],
+['v11','2026-05-24','受粉',''],
+['v16','2026-05-25','定植',''],['v17','2026-05-25','収穫',''],
+['v1','2026-05-26','受粉',''],['v2','2026-05-26','水・リキダス',''],
+['v3','2026-05-26','収穫',''],['v4','2026-05-26','収穫',''],
+['v5','2026-05-26','水・リキダス',''],['v9','2026-05-26','水・リキダス',''],
+['v10','2026-05-26','水・リキダス',''],['v12','2026-05-26','芽掻・下葉摘葉',''],
+['v13','2026-05-26','水・リキダス',''],['v14','2026-05-26','水・リキダス',''],
+['v15','2026-05-26','水・リキダス',''],['v16','2026-05-26','水・リキダス',''],
+['v18','2026-05-26','水・リキダス','']
+];
+
+// Harvest seed [vid, variety, date, count]
+const HARVEST_SEED=[
+['v17','ニンニク','2026-05-08',2],['v15','京ひかり','2026-05-08',1],
+['v17','ニンニク','2026-05-14',14],['v3','グリーンポート１','2026-05-14',1],
+['v3','ダイナーEX','2026-05-14',1],
+['v17','ニンニク','2026-05-15',5],
+['v17','ニンニク','2026-05-16',18],
+['v17','ニンニク','2026-05-17',2],
+['v3','グリーンポート１','2026-05-20',2],['v3','オーラム黄','2026-05-20',2],
+['v3','ダイナーEX','2026-05-20',2],['v10','夏涼み(蔓)','2026-05-20',1],
+['v10','夏涼み(3本)','2026-05-20',1],['v10','ニーナZ(3本)','2026-05-20',1],
+['v10','ニーナZ(蔓)','2026-05-20',1],
+['v17','ニンニク','2026-05-23',2],['v3','グリーンポート１','2026-05-23',1],
+['v3','ダイナーEX','2026-05-23',1],['v10','夏涼み(蔓)','2026-05-23',1],
+['v10','夏涼み(3本)','2026-05-23',2],['v10','ニーナZ(3本)','2026-05-23',1],
+['v10','ニーナZ(蔓)','2026-05-23',1],
+['v3','グリーンポート１','2026-05-24',1],['v5','千両2号','2026-05-24',1],
+['v15','京ひかり','2026-05-24',4],
+['v17','ニンニク','2026-05-25',26],['v4','きたあかり','2026-05-25',22],
+['v3','グリーンポート１','2026-05-26',1],['v3','オーラム黄','2026-05-26',1],
+['v3','ダイナーEX','2026-05-26',1],['v4','きたあかり','2026-05-26',22],
+['v4','アンデスレッド','2026-05-26',6],['v10','夏涼み(3本)','2026-05-26',1],
+['v10','ニーナZ(3本)','2026-05-26',1],['v15','京ひかり','2026-05-26',1]
+];
+
+// ===================== IMAGE COMPRESSION =====================
+// createObjectURL でメモリ効率よく読み込み → Canvas で 800px/JPEG65% に圧縮
+// readAsDataURL は Base64 変換で数十MB消費するためスマホで応答不能になる問題を回避
+function _compressImage(file, callback) {
+  const MAX_PX = 500;   // 800→500px（Firebase転送量を約60%削減）
+  const QUALITY = 0.60; // 65%→60%（家庭菜園の記録には十分な画質）
+  const blobUrl = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    URL.revokeObjectURL(blobUrl); // 即座に解放してメモリを節約
+    let w = img.width, h = img.height;
+    if (w > MAX_PX || h > MAX_PX) {
+      if (w >= h) { h = Math.round(h * MAX_PX / w); w = MAX_PX; }
+      else        { w = Math.round(w * MAX_PX / h); h = MAX_PX; }
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+    const result = canvas.toDataURL('image/jpeg', QUALITY);
+    canvas.width = 0; canvas.height = 0; // canvasメモリを即座に解放
+    callback(result);
+  };
+  img.onerror = () => {
+    // HEIC等で読めない場合はFileReaderでフォールバック（iOS対応）
+    URL.revokeObjectURL(blobUrl);
+    const reader = new FileReader();
+    reader.onload = ev => callback(ev.target.result);
+    reader.onerror = () => callback(null); // 完全に失敗した場合
+    reader.readAsDataURL(file);
+  };
+  img.src = blobUrl;
+}
+
+// ===================== STATE =====================
+let S={view:'timeline', selVeg:null, editSchedId:null, editHarvestId:null, editVegId:null, detailTab:'info'};
+let D={vegetables:[], schedules:[], harvests:[]};
+let idCounter=1000;
+let _editPhotos=[]; // 作業記録編集中の写真配列（最大8枚・base64）
+let _pendingPhotoDeletes=new Set(); // 削除されたスケジュールID → Firebaseの写真も消す用
+let _pendingHarvestDeletes=new Set(); // 削除された収穫ID → リスナー上書きで復活しないよう追跡
+let _syncedPhotoIds=new Set(); // Firebaseに送信済み（変更なし）のスケジュールID → 毎回の全写真再送信を防ぐ
+const _photoGroups={}; // {schedId: [base64, ...]} ライトボックス用
+const newId=()=>'id'+(++idCounter)+(Date.now()%10000);
+
+// 野菜オブジェクトに必須ネストプロパティを補完（旧形式データとの後方互換）
+function _normalizeVeg(v){
+  if(!v) return v;
+  if(!Array.isArray(v.varieties)) v.varieties=[];
+  if(!v.tax || typeof v.tax!=='object') v.tax={};
+  v.tax.order  = v.tax.order  ?? '';
+  v.tax.family = v.tax.family ?? '';
+  v.tax.genus  = v.tax.genus  ?? '';
+  if(!v.traits || typeof v.traits!=='object') v.traits={};
+  v.traits.origin     = v.traits.origin     ?? '';
+  v.traits.coldHeat   = v.traits.coldHeat   ?? '';
+  v.traits.water      = v.traits.water      ?? '';
+  v.traits.fertilizer = v.traits.fertilizer ?? '';
+  v.traits.other      = v.traits.other      ?? '';
+  if(!v.mgmt || typeof v.mgmt!=='object') v.mgmt={};
+  ['soil','ridge','sow','transplant','water','train','fertilize',
+   'bud','leaf','spray','flowerFruit','harvest','storage','expected'
+  ].forEach(k=>{ v.mgmt[k] = v.mgmt[k] ?? ''; });
+  return v;
+}
+
+function loadData(){
+  const saved=localStorage.getItem('yasai_v2');
+  if(saved){
+    try{
+      D=JSON.parse(saved);
+      // 旧形式データを読み込んだ際に欠損フィールドを補完
+      if(D.vegetables) D.vegetables.forEach(_normalizeVeg);
+      return;
+    }catch(e){}
+  }
+  // seed
+  D.vegetables=DEFAULT_VEGS.map(v=>Object.assign({},v));
+  D.schedules=SCHED_SEED.map((s,i)=>({id:'s'+i,vid:s[0],date:s[1],act:s[2],memo:s[3],
+    timeFrom:'',timeTo:'',photo:null,plan:false}));
+  D.harvests=HARVEST_SEED.map((h,i)=>({id:'h'+i,vid:h[0],variety:h[1],date:h[2],count:h[3],memo:''}));
+}
+// 写真を除いたデータを返す（localStorage フォールバック用）
+function _dataWithoutPhotos(){
+  return {
+    vegetables: D.vegetables,
+    schedules: D.schedules.map(s=>{
+      const c=Object.assign({},s); delete c.photos; delete c.photo; return c;
+    }),
+    harvests: D.harvests
+  };
+}
+
+// localStorage に保存。
+// クラウド同期が有効な端末では写真を localStorage に持たない（写真の正本は Firebase）。
+// これにより localStorage の容量超過を根本的に防ぐ。写真は起動時に Firebase から再取得される。
+// クラウド未設定の端末のみ写真込みで保存し、容量超過時は写真なしでリトライ（テキストは必ず残す）
+function _saveLocal(){
+  const hasCloud = !!localStorage.getItem('yasai_fb');
+  try {
+    localStorage.setItem('yasai_v2', JSON.stringify(hasCloud ? _dataWithoutPhotos() : D));
+  } catch(e) {
+    console.warn('localStorage full, retrying without photos:', e);
+    try {
+      localStorage.setItem('yasai_v2', JSON.stringify(_dataWithoutPhotos()));
+    } catch(e2) {
+      console.warn('localStorage save failed completely:', e2);
+    }
+  }
+}
+
+function saveData(){
+  _saveLocal();
+  saveToCloud();
+}
+function getVeg(id){return D.vegetables.find(v=>v.id===id);}
+function vegColor(v){return VEG_COLORS[v.color%VEG_COLORS.length];}
+function vegEmoji(v){return VEG_EMOJIS[v.color%VEG_EMOJIS.length];}
+
+// ローカル日付を "YYYY-MM-DD" 文字列に変換（toISOString はUTC変換で日付がズレるため使わない）
+function _localDateStr(d){
+  const y=d.getFullYear();
+  const m=String(d.getMonth()+1).padStart(2,'0');
+  const day=String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+
+function actColor(act){
+  if(!act)return'#6b7280';
+  if(/収穫|採取/.test(act))return'#dc2626';
+  if(/定植|苗購入/.test(act))return'#16a34a';
+  if(/播種|催芽|種芋|発芽/.test(act))return'#15803d';
+  if(/水・|水やり|^水$|リキダス/.test(act))return'#2563eb';
+  if(/追肥|施肥|デナポン/.test(act))return'#ca8a04';
+  if(/仕立|誘引|合掌|ロープ|ライン/.test(act))return'#ea580c';
+  if(/芽掻|摘葉|摘果|摘花|摘芽|下葉|分けつ/.test(act))return'#9333ea';
+  if(/ニーム|ゼンダーリ|散布|農薬/.test(act))return'#7c3aed';
+  if(/畝|マルチ/.test(act))return'#92400e';
+  if(/土づくり|土作/.test(act))return'#78350f';
+  if(/受粉|人工授粉/.test(act))return'#ec4899';
+  if(/成長観測|試堀|確認/.test(act))return'#0891b2';
+  return'#6b7280';
+}
+
+// ===================== CLOUD SYNC (Firebase) =====================
+let FB_DB = null, FB_KEY = null, FB_LISTENER = null, FB_PHOTO_LISTENER = null, FB_HARVEST_LISTENER = null, FB_ERROR = null, FB_TIMEOUT = null;
+
+// 既定のFirebase接続設定（アプリに内蔵）。
+// 同期キーはここに書かない：このファイルは公開リポジトリに置くため、
+// キーだけは各端末で1回入力してもらう（キーを知る人だけがデータにアクセスできる）。
+const DEFAULT_FB_CONFIG = null; // 例: { apiKey:"...", authDomain:"...", databaseURL:"https://...", projectId:"...", storageBucket:"...", messagingSenderId:"...", appId:"..." }
+
+function loadCloudConfig() {
+  try {
+    const raw = localStorage.getItem('yasai_fb');
+    if (!raw) { updateSyncBadge('none'); return; }
+    const saved = JSON.parse(raw);
+    // 内蔵設定がある場合は接続情報を常に最新の内蔵値で上書きする
+    // （Firebaseプロジェクトを差し替えた際、各端末は同期キーそのままで自動的に新DBへ接続される）
+    const config = DEFAULT_FB_CONFIG || saved.config;
+    const key = saved.key;
+    if (config && key) { FB_KEY = key; initFirebase(config); }
+    else updateSyncBadge('none');
+  } catch(e) { updateSyncBadge('none'); }
+}
+
+function initFirebase(config) {
+  FB_ERROR = null;
+  clearTimeout(FB_TIMEOUT);
+  updateSyncBadge('connecting');
+
+  // 15秒以内に接続できなければタイムアウトエラーを表示
+  FB_TIMEOUT = setTimeout(() => {
+    if (!FB_DB) {
+      FB_ERROR = 'タイムアウト：Firebaseに接続できませんでした。\ndatabaseURLとデータベースのルール設定を確認してください。';
+      updateSyncBadge('error');
+      render();
+    }
+  }, 15000);
+
+  _loadSDK(() => {
+    // 既存のFirebaseアプリがあれば削除してから再初期化（再設定時のエラー防止）
+    const doInit = () => {
+      try {
+        window.firebase.initializeApp(config);
+        FB_DB = window.firebase.database();
+        clearTimeout(FB_TIMEOUT);
+
+        FB_DB.ref('yasai/'+FB_KEY).once('value').then(snap => {
+          const d = snap.val();
+          if (d && (d.meta || d.vegetables)) {
+            // Firebase にデータあり：新旧両形式から写真を抽出してマージ
+            const photosObj = _extractPhotosFromFirebase(d);
+            const metaNode = d.meta && d.meta.vegetables ? d.meta
+                       : { vegetables: d.vegetables, schedules: d.schedules, harvests: d.harvests };
+            const firebaseData = _mergePhotosIntoData(metaNode, photosObj);
+
+            // ── ローカルにしかないスケジュールを保持（Firebase接続前に追加したものを失わない）
+            const fbIds = new Set((firebaseData.schedules||[]).map(s => s.id));
+            const localOnly = (D.schedules||[]).filter(s => !fbIds.has(s.id));
+            if (localOnly.length > 0) {
+              firebaseData.schedules = [...firebaseData.schedules, ...localOnly];
+            }
+            // ── harvestsById ノードからも収穫データを取得・マージ ──
+            // （即時書き込み方式で保存されたデータを確実に読み込む）
+            const harvestsByIdNode = d.harvestsById;
+            if (harvestsByIdNode && typeof harvestsByIdNode === 'object') {
+              const hbMap = {};
+              (firebaseData.harvests||[]).forEach(h => { if(h&&h.id) hbMap[h.id]=h; });
+              Object.values(harvestsByIdNode).forEach(h => {
+                if (h && h.id && !_pendingHarvestDeletes.has(h.id)) hbMap[h.id] = h;
+              });
+              firebaseData.harvests = Object.values(hbMap);
+            }
+            // ── ローカルにしかない収穫データを保持 ──
+            const fbHarvestIds = new Set((firebaseData.harvests||[]).map(h => h.id));
+            const localOnlyHarvests = (D.harvests||[]).filter(h =>
+              !fbHarvestIds.has(h.id) && !_pendingHarvestDeletes.has(h.id)
+            );
+            if (localOnlyHarvests.length > 0) {
+              firebaseData.harvests = [...firebaseData.harvests, ...localOnlyHarvests];
+            }
+            // ── Firebase に未到達のローカル写真を救済する ──
+            // initFirebase が D を上書きする前に、Firebase に届いていない写真を
+            // ローカルの D から firebaseData に補完する（写真が消えるのを防ぐ）
+            const localPhotoMap = {};
+            (D.schedules||[]).forEach(s => {
+              const ps = s.photos && s.photos.length ? s.photos : s.photo ? [s.photo] : [];
+              if (ps.length && !photosObj[s.id]) localPhotoMap[s.id] = ps;
+            });
+            if (Object.keys(localPhotoMap).length > 0) {
+              firebaseData.schedules = firebaseData.schedules.map(s =>
+                localPhotoMap[s.id]
+                  ? Object.assign({}, s, { photos: localPhotoMap[s.id], photo: localPhotoMap[s.id][0] })
+                  : s
+              );
+            }
+            D = firebaseData;
+            _saveLocal();
+            // Firebase から取得した写真は既に同期済みとして記録する
+            // （次回保存時に全写真を再送信してしまうのを防ぐ）
+            Object.keys(photosObj).forEach(id => _syncedPhotoIds.add(id));
+
+            // ローカルにしかない記録があるか、接続前に保存が要求されていれば Firebase に反映
+            const needsPush = localOnly.length > 0 || localOnlyHarvests.length > 0 || _saveQueuedForConnect || !d.meta || Object.keys(localPhotoMap).length > 0;
+            _saveQueuedForConnect = false;
+            if (needsPush) setTimeout(() => saveToCloud(), 500);
+          } else {
+            // Firebase が空: ローカルデータ（写真含む）を Firebase にプッシュ
+            _saveQueuedForConnect = false;
+            saveToCloud();
+          }
+          FB_ERROR = null;
+          updateSyncBadge('ok');
+          _startListener();       // テキスト・メタデータの変更を監視（meta のみ・帯域節約）
+          // _startPhotoListener は無効（写真は initFirebase の once + _startListener で管理）
+          _startHarvestListener();// 収穫データの変更を独立して監視
+          // 編集フォームが開いている最中はフォームを再描画しない（_editPhotos がリセットされ入力中の写真が消えるのを防ぐ）
+          { const EV=['add-sched','add-harvest','add-veg']; if(EV.includes(S.view)){renderSidebar();}else{render();} }
+        }).catch(err => {
+          FB_ERROR = 'データ読み込みエラー：' + (err.message || err.code || String(err));
+          updateSyncBadge('error');
+          { const EV=['add-sched','add-harvest','add-veg']; if(!EV.includes(S.view)) render(); }
+        });
+      } catch(e) {
+        clearTimeout(FB_TIMEOUT);
+        FB_ERROR = '初期化エラー：' + (e.message || String(e));
+        updateSyncBadge('error');
+        render();
+      }
+    };
+
+    try {
+      if (window.firebase.apps && window.firebase.apps.length) {
+        // 既存アプリを全削除してから再初期化
+        Promise.all(window.firebase.apps.map(app => app.delete())).then(doInit).catch(doInit);
+      } else {
+        doInit();
+      }
+    } catch(e) {
+      doInit();
+    }
+  });
+}
+
+function _loadSDK(cb) {
+  if (window.firebase && window.firebase.database) { cb(); return; }
+  const s1 = document.createElement('script');
+  s1.src = 'https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js';
+  s1.onerror = () => updateSyncBadge('error');
+  s1.onload = () => {
+    const s2 = document.createElement('script');
+    s2.src = 'https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js';
+    s2.onerror = () => updateSyncBadge('error');
+    s2.onload = cb;
+    document.head.appendChild(s2);
+  };
+  document.head.appendChild(s1);
+}
+
+function _startListener() {
+  if (!FB_DB || !FB_KEY) return;
+  if (FB_LISTENER) FB_DB.ref('yasai/'+FB_KEY+'/meta').off('value', FB_LISTENER);
+  // 【帯域節約】写真データを含む yasai/KEY 全体ではなく meta のみを監視
+  // 写真は initFirebase の once('value') で初回のみ取得する
+  FB_LISTENER = FB_DB.ref('yasai/'+FB_KEY+'/meta').on('value', snap => {
+    const meta = snap.val();
+    if (!meta || !meta.vegetables) return;
+    // meta のみのスナップショット → D が持つ現在の写真を引き継いで使う（帯域節約）
+    // D の写真が空の場合は Firebase の photos ノードから補完する
+    let incoming;
+    {
+      const currentPhotos = {};
+      (D.schedules||[]).forEach(s => {
+        const ps = s.photos && s.photos.length ? s.photos : s.photo ? [s.photo] : [];
+        if (ps.length) currentPhotos[s.id] = ps;
+      });
+      incoming = _mergePhotosIntoData(meta, currentPhotos);
+    }
+
+    // ── 変化検知 ──────────────────────────────────────────────────────────
+    // スケジュールは「件数・並び・内容」すべて比較（PCでの編集も検知するため）
+    // ※ 順序に依存しないよう ID でソートして比較
+    const _schedKey = s =>
+      `${s.id}|${s.date}|${s.act}|${s.memo||''}|${s.vid}|${String(s.plan)}|${s.timeFrom||''}|${s.timeTo||''}|${s.gphoto||''}`;
+    const _schedHash = arr =>
+      (arr||[]).map(_schedKey).sort().join('\n');
+    const _photoCount = arr =>
+      (arr||[]).reduce((s,x)=>s+(x.photos&&x.photos.length?x.photos.length:x.photo?1:0),0);
+    // 収穫データはID・個数・日付・品種・メモで比較（プロパティ順に依存しない）
+    const _harvestKey = h =>
+      `${h.id}|${h.count}|${h.date}|${h.vid}|${h.variety||''}|${h.memo||''}`;
+    const _harvestHash = arr =>
+      (arr||[]).map(_harvestKey).sort().join('\n');
+
+    const changed =
+      _schedHash(incoming.schedules) !== _schedHash(D.schedules) ||
+      _photoCount(incoming.schedules) !== _photoCount(D.schedules) ||
+      JSON.stringify(incoming.vegetables) !== JSON.stringify(D.vegetables) ||
+      _harvestHash(incoming.harvests)     !== _harvestHash(D.harvests);
+
+    if (changed) {
+      // ── ローカルにしかないスケジュールを保持（削除済みは除く）
+      const inIds = new Set((incoming.schedules||[]).map(s => s.id));
+      const localOnly = (D.schedules||[]).filter(s =>
+        !inIds.has(s.id) && !_pendingPhotoDeletes.has(s.id)
+      );
+      if (localOnly.length > 0) {
+        incoming.schedules = [...incoming.schedules, ...localOnly];
+      }
+
+      // ── ローカルにしかない収穫データを保持（削除済みは除く）───────────────
+      // 収穫入力後にリスナーが発火してFirebaseの古いデータで上書きされるのを防ぐ
+      const inHarvestIds = new Set((incoming.harvests||[]).map(h => h.id));
+      const localOnlyHarvests = (D.harvests||[]).filter(h =>
+        !inHarvestIds.has(h.id) && !_pendingHarvestDeletes.has(h.id)
+      );
+      if (localOnlyHarvests.length > 0) {
+        incoming.harvests = [...incoming.harvests, ...localOnlyHarvests];
+      }
+
+      // ローカルにしかないデータがある場合は Firebase にも反映
+      if (localOnly.length > 0 || localOnlyHarvests.length > 0) {
+        setTimeout(() => saveToCloud(), 1000);
+      }
+
+      // ── incoming.harvests から削除済み収穫が復活しないよう除外 ──────────────
+      if (_pendingHarvestDeletes.size > 0) {
+        incoming.harvests = (incoming.harvests||[]).filter(h => !_pendingHarvestDeletes.has(h.id));
+      }
+
+      // ── 写真の引き継ぎ（端末の役割に応じて判断）────────────────────────────
+      // 写真アップロード端末（スマホ）：D の写真を常に優先
+      //   → Firebase の古いデータで編集中の写真が上書きされるのを防ぐ
+      // 写真受信のみ端末（PC）：Firebase の写真を優先し、なければ D の写真をフォールバック
+      const pushPhotos = localStorage.getItem('yasai_photo_push') !== 'false';
+      const prevPhotos = {};
+      (D.schedules||[]).forEach(s => {
+        const ps = s.photos && s.photos.length ? s.photos : s.photo ? [s.photo] : [];
+        if (ps.length) prevPhotos[s.id] = { photos: ps, photo: ps[0] };
+      });
+      incoming.schedules = incoming.schedules.map(s => {
+        const prev = prevPhotos[s.id];
+        if (pushPhotos && prev) {
+          // 写真アップロード端末：D に写真があれば常に D の写真を優先
+          // （Firebase には古い写真しかない可能性があるため）
+          return Object.assign({}, s, prev);
+        }
+        // 写真受信のみ端末：Firebase の写真を使い、ない場合は D の写真で補完
+        if (s.photos && s.photos.length) return s;
+        if (s.photo) return s;
+        return prev ? Object.assign({}, s, prev) : s;
+      });
+
+      D = incoming;
+      _saveLocal();
+      const EDIT_VIEWS = ['add-sched', 'add-harvest', 'add-veg'];
+      if (!EDIT_VIEWS.includes(S.view)) render();
+    }
+    updateSyncBadge('ok');
+  });
+}
+
+// ── 写真専用リスナー ──────────────────────────────────────────────────────────
+// yasai/KEY/photos ノードを独立して監視する。
+// 【端末ごとの動作】
+//   写真アップロード端末（スマホ：pushPhotos=true）:
+//     D に写真がある場合はスキップ（ローカル編集中の写真をFirebaseの古いデータで上書きしない）
+//     D に写真がない場合のみ Firebase から取得
+//   写真受信のみ端末（PC：pushPhotos=false）:
+//     常に Firebase を信頼して最新写真を取得
+function _startPhotoListener() {
+  if (!FB_DB || !FB_KEY) return;
+  if (FB_PHOTO_LISTENER) {
+    try { FB_DB.ref('yasai/'+FB_KEY+'/photos').off('value', FB_PHOTO_LISTENER); } catch(e) {}
+    FB_PHOTO_LISTENER = null;
+  }
+  FB_PHOTO_LISTENER = FB_DB.ref('yasai/'+FB_KEY+'/photos').on('value', snap => {
+    const photosNode = snap.val();
+    if (!photosNode || typeof photosNode !== 'object') return;
+
+    const pushPhotos = localStorage.getItem('yasai_photo_push') !== 'false';
+
+    let photoChanged = false;
+    const newSchedules = D.schedules.map(s => {
+      const rawPs = photosNode[s.id];
+      if (!rawPs) return s;
+      // Firebase SDK が配列をオブジェクトとして返す場合に対応
+      const ps = Array.isArray(rawPs) ? rawPs : Object.values(rawPs).filter(Boolean);
+      if (!ps.length) return s;
+      const curLen = s.photos && s.photos.length ? s.photos.length : s.photo ? 1 : 0;
+
+      if (pushPhotos && curLen > 0) {
+        // 写真アップロード端末：D に写真があればスキップ（ローカル変更を保護）
+        // Firebase の古いデータで新しく入力した写真が上書きされるのを防ぐ
+        return s;
+      }
+
+      // 写真受信のみ端末（PC）または D に写真がない場合：Firebase を信頼して更新
+      if (ps.length !== curLen || JSON.stringify(ps) !== JSON.stringify(s.photos)) {
+        photoChanged = true;
+        return Object.assign({}, s, { photos: ps, photo: ps[0] || null });
+      }
+      return s;
+    });
+
+    if (photoChanged) {
+      D = Object.assign({}, D, { schedules: newSchedules });
+      _saveLocal();
+      const EDIT_VIEWS = ['add-sched', 'add-harvest', 'add-veg'];
+      if (!EDIT_VIEWS.includes(S.view)) render();
+    }
+  });
+}
+
+// ── 収穫データ専用リスナー ────────────────────────────────────────────────────
+// harvestsById ノード（個別パス）と meta/harvests の両方を監視する。
+// スマホが即時書き込みした harvestsById の変化を確実に PC へ反映する。
+function _startHarvestListener() {
+  if (!FB_DB || !FB_KEY) return;
+  if (FB_HARVEST_LISTENER) {
+    try { FB_DB.ref('yasai/'+FB_KEY+'/harvestsById').off('value', FB_HARVEST_LISTENER); } catch(e) {}
+    FB_HARVEST_LISTENER = null;
+  }
+
+  // harvestsById ノードを監視（即時書き込みの受け取り）
+  FB_HARVEST_LISTENER = FB_DB.ref('yasai/'+FB_KEY+'/harvestsById').on('value', snap => {
+    const raw = snap.val();
+    if (!raw || typeof raw !== 'object') return;
+
+    // Firebase SDK が配列をオブジェクトとして返す場合も正規化
+    const fbEntries = Object.values(raw).filter(h => h && h.id);
+
+    // D.harvests と Firebase の収穫をマージ
+    const localMap = {};
+    (D.harvests||[]).forEach(h => { if (h && h.id) localMap[h.id] = h; });
+
+    let changed = false;
+    fbEntries.forEach(h => {
+      if (_pendingHarvestDeletes.has(h.id)) return;
+      const local = localMap[h.id];
+      if (!local) {
+        localMap[h.id] = h;
+        changed = true;
+      } else {
+        const fbStr = `${h.count}|${h.date}|${h.variety||''}|${h.memo||''}`;
+        const lcStr = `${local.count}|${local.date}|${local.variety||''}|${local.memo||''}`;
+        if (fbStr !== lcStr) { localMap[h.id] = h; changed = true; }
+      }
+    });
+
+    if (changed) {
+      D.harvests = Object.values(localMap).sort((a,b) => (b.date||'').localeCompare(a.date||''));
+      _saveLocal();
+      const EDIT_VIEWS = ['add-sched', 'add-harvest', 'add-veg'];
+      if (!EDIT_VIEWS.includes(S.view)) render();
+    }
+  });
+}
+
+// ---- Firebase データ分割／統合ヘルパー ----
+// 写真（base64）を別ノードに分けてサイズ問題を回避する
+// 構造: yasai/KEY/meta（テキスト）+ yasai/KEY/photos/SCHED_ID（写真配列）
+
+function _splitDataForCloud() {
+  const photosObj = {};
+  const schedules = D.schedules.map(s => {
+    const ps = s.photos && s.photos.length ? s.photos : s.photo ? [s.photo] : [];
+    if (ps.length) photosObj[s.id] = ps;
+    // 写真データを除いたスケジュールエントリ
+    const stripped = Object.assign({}, s);
+    delete stripped.photos;
+    delete stripped.photo;
+    return stripped;
+  });
+  return {
+    meta: { vegetables: D.vegetables, schedules, harvests: D.harvests },
+    photosObj
+  };
+}
+
+function _mergePhotosIntoData(meta, photosObj) {
+  const photos = photosObj || {};
+  // Firebase SDK は配列を {0:...,1:...} のオブジェクトとして返す場合がある
+  // → vegetables / schedules / harvests すべてを必ず配列に正規化する
+  const toArr = v => !v ? [] : Array.isArray(v) ? v : (typeof v === 'object' ? Object.values(v) : []);
+  return {
+    vegetables: toArr(meta.vegetables).map(v => _normalizeVeg(Object.assign({}, v))),
+    schedules: toArr(meta.schedules).map(s => {
+      const ps = toArr(photos[s.id]);
+      return Object.assign({}, s, { photos: ps, photo: ps[0] || null });
+    }),
+    harvests: toArr(meta.harvests)
+  };
+}
+
+// Firebase ノード全体から写真を抽出
+// 新形式（d.photos.SCHED_ID）と旧形式（d.schedules[x].photos 埋め込み）の両方に対応
+// Firebase SDK が配列を {0:...,1:...} のオブジェクトとして返す場合も正規化する
+function _extractPhotosFromFirebase(d) {
+  const photosObj = {};
+  // 新形式: yasai/KEY/photos/SCHED_ID = [base64, ...]
+  if (d.photos && typeof d.photos === 'object') {
+    Object.keys(d.photos).forEach(k => {
+      const val = d.photos[k];
+      if (!val) return;
+      if (Array.isArray(val)) {
+        photosObj[k] = val;
+      } else if (typeof val === 'object') {
+        // Firebase SDK が配列を {0:...,1:...} 形式のオブジェクトとして返した場合を正規化
+        const arr = Object.values(val).filter(Boolean);
+        if (arr.length) photosObj[k] = arr;
+      }
+    });
+  }
+  // 旧形式: schedules に photos/photo が埋め込まれている場合を補完
+  // d.schedules（ルートレベル）と d.meta.schedules の両方をチェック
+  const toScheds = v => Array.isArray(v) ? v : (v && typeof v === 'object') ? Object.values(v) : [];
+  [...toScheds(d.schedules), ...toScheds(d.meta && d.meta.schedules)].forEach(s => {
+    if (!s || !s.id || photosObj[s.id]) return; // 新形式で取得済みならスキップ
+    const ps = (s.photos && s.photos.length) ? s.photos : s.photo ? [s.photo] : [];
+    if (ps.length) photosObj[s.id] = ps;
+  });
+  return photosObj;
+}
+
+let _syncTimer = null;
+let _saveQueuedForConnect = false; // Firebase接続前にsaveToCloudを呼んだ場合のフラグ
+
+function saveToCloud() {
+  if (!FB_DB || !FB_KEY) {
+    // まだFirebaseに繋がっていない → 接続完了後に実行するようフラグを立てる
+    _saveQueuedForConnect = true;
+    return;
+  }
+  updateSyncBadge('syncing');
+  clearTimeout(_syncTimer);
+  _syncTimer = setTimeout(_flushSaveToCloud, 500);
+}
+
+// ── saveToCloud の本体（debounce後に実行）───────────────────────────────────
+// Firebase の schedules と harvests を先読みしてからマージして書き込む（read-modify-write）。
+// これにより「端末A保存時に端末Bが追加したデータが消える」問題を防ぐ。
+function _flushSaveToCloud() {
+  const { meta, photosObj } = _splitDataForCloud();
+
+  Promise.all([
+    FB_DB.ref('yasai/'+FB_KEY+'/meta/schedules').once('value'),
+    FB_DB.ref('yasai/'+FB_KEY+'/meta/harvests').once('value')
+  ]).then(([schedSnap, harvestSnap]) => {
+
+    // ── スケジュールのマージ ──
+    const rawScheds = schedSnap.val();
+    const cloudScheds = Array.isArray(rawScheds) ? rawScheds
+                      : (rawScheds && typeof rawScheds === 'object') ? Object.values(rawScheds) : [];
+    const localIds = new Set(meta.schedules.map(s => s.id));
+    cloudScheds.forEach(s => {
+      if (s && s.id && !localIds.has(s.id) && !_pendingPhotoDeletes.has(s.id)) {
+        meta.schedules.push(s);
+        if (!D.schedules.find(x => x.id === s.id)) {
+          D.schedules.push(Object.assign({}, s, { photos: [], photo: null }));
+        }
+      }
+    });
+
+    // ── 収穫データのマージ ──
+    // 他端末が追加した収穫を保持する（書き込み競合で消えないようにする）
+    const rawHarvests = harvestSnap.val();
+    const cloudHarvests = Array.isArray(rawHarvests) ? rawHarvests
+                        : (rawHarvests && typeof rawHarvests === 'object') ? Object.values(rawHarvests) : [];
+    const localHarvestIds = new Set(meta.harvests.map(h => h.id));
+    cloudHarvests.forEach(h => {
+      if (h && h.id && !localHarvestIds.has(h.id) && !_pendingHarvestDeletes.has(h.id)) {
+        meta.harvests.push(h);
+        if (!D.harvests.find(x => x.id === h.id)) {
+          D.harvests.push(Object.assign({}, h));
+        }
+      }
+    });
+
+    _commitCloudWrite(meta, photosObj);
+  }).catch(() => _commitCloudWrite(meta, photosObj)); // 読み取り失敗時はそのまま書き込む
+}
+
+function _commitCloudWrite(meta, photosObj) {
+  const updates = {};
+  updates['yasai/'+FB_KEY+'/meta'] = meta;
+
+  // 写真はデバイスの設定に従い Firebase へ書き込む
+  // ── 既に送信済み（_syncedPhotoIds）の写真は再送信しない ──
+  // （毎回の保存で全写真を再アップロードすると通信量が膨大になり、
+  //   モバイル回線で同期バッジが「同期中」のまま固まる原因になっていた）
+  const pushPhotos = localStorage.getItem('yasai_photo_push') !== 'false';
+  const idsToSend = [];
+  if (pushPhotos) {
+    Object.keys(photosObj).forEach(id => {
+      if (!_syncedPhotoIds.has(id)) {
+        updates['yasai/'+FB_KEY+'/photos/'+id] = photosObj[id];
+        idsToSend.push(id);
+      }
+    });
+  }
+  // 削除されたスケジュールの写真は端末設定に関わらず消す
+  _pendingPhotoDeletes.forEach(id => {
+    updates['yasai/'+FB_KEY+'/photos/'+id] = null;
+    _syncedPhotoIds.delete(id);
+  });
+
+  _withTimeout(FB_DB.ref().update(updates), 20000)
+    .then(() => {
+      idsToSend.forEach(id => _syncedPhotoIds.add(id));
+      _pendingPhotoDeletes.clear(); _pendingHarvestDeletes.clear(); updateSyncBadge('ok');
+    })
+    .catch(err => { console.error('saveToCloud error:', err); updateSyncBadge('error'); });
+}
+
+// この端末のデータ（写真含む）をクラウドへ強制プッシュ
+function forcePushToCloud() {
+  if (!FB_DB || !FB_KEY) { alert('Firebase に接続されていません'); return; }
+  updateSyncBadge('syncing');
+  const { meta, photosObj } = _splitDataForCloud();
+  const updates = {};
+  updates['yasai/'+FB_KEY+'/meta'] = meta;
+  // 写真は個別パスで更新（bulkで上書きすると他端末の写真が消えるのを防ぐ）
+  const pushPhotos = localStorage.getItem('yasai_photo_push') !== 'false';
+  if (pushPhotos) {
+    Object.keys(photosObj).forEach(id => {
+      updates['yasai/'+FB_KEY+'/photos/'+id] = photosObj[id];
+    });
+  }
+  _pendingPhotoDeletes.forEach(id => {
+    updates['yasai/'+FB_KEY+'/photos/'+id] = null;
+  });
+  _withTimeout(FB_DB.ref().update(updates), 30000)
+    .then(() => {
+      Object.keys(photosObj).forEach(id => _syncedPhotoIds.add(id));
+      _pendingPhotoDeletes.clear();
+      updateSyncBadge('ok');
+      alert('✅ この端末のデータをクラウドへ送信しました！\n他の端末でページを再読み込みすると反映されます。');
+    })
+    .catch(err => { updateSyncBadge('error'); alert('同期エラー：' + (err.message || String(err))); });
+}
+
+// Firebase から最新の収穫データを取得して D.harvests にマージする
+// 収穫データのみ（meta/harvests + harvestsById）を取得し帯域を節約する
+function _fetchAndMergeHarvests() {
+  if (!FB_DB || !FB_KEY) return Promise.resolve();
+  const toArr = v => !v ? [] : Array.isArray(v) ? v : (typeof v === 'object' ? Object.values(v) : []);
+  return Promise.all([
+    FB_DB.ref('yasai/'+FB_KEY+'/meta/harvests').once('value'),
+    FB_DB.ref('yasai/'+FB_KEY+'/harvestsById').once('value')
+  ]).then(([metaSnap, byIdSnap]) => {
+    const hMap = {};
+    toArr(metaSnap.val()).forEach(h => { if(h&&h.id) hMap[h.id]=h; });
+    const byId = byIdSnap.val();
+    if(byId && typeof byId === 'object'){
+      Object.values(byId).forEach(h => { if(h&&h.id&&!_pendingHarvestDeletes.has(h.id)) hMap[h.id]=h; });
+    }
+    const fbHarvests = Object.values(hMap);
+    if(!fbHarvests.length) return;
+    const localMap = {};
+    (D.harvests||[]).forEach(h => { if(h&&h.id) localMap[h.id]=h; });
+    let changed = false;
+    fbHarvests.forEach(h => {
+      const local = localMap[h.id];
+      if(!local){ localMap[h.id]=h; changed=true; }
+      else {
+        const fs=`${h.count}|${h.date}|${h.variety||''}|${h.memo||''}`;
+        const ls=`${local.count}|${local.date}|${local.variety||''}|${local.memo||''}`;
+        if(fs!==ls){ localMap[h.id]=h; changed=true; }
+      }
+    });
+    if(changed){
+      D.harvests = Object.values(localMap);
+      _saveLocal();
+    }
+  }).catch(()=>{});
+}
+
+// クラウドの最新データ（他の端末の写真含む）をこの端末へ強制取得
+function forcePullFromCloud() {
+  if (!FB_DB || !FB_KEY) { alert('Firebase に接続されていません'); return; }
+  updateSyncBadge('connecting');
+  FB_DB.ref('yasai/'+FB_KEY).once('value').then(snap => {
+    const d = snap.val();
+    if (!d) { alert('クラウドにデータがありません'); updateSyncBadge('ok'); return; }
+    let merged;
+    if (d.meta && d.meta.vegetables) {
+      // 新旧両形式から写真を抽出してマージ
+      merged = _mergePhotosIntoData(d.meta, _extractPhotosFromFirebase(d));
+    } else if (d.vegetables) {
+      // 旧形式
+      const photosObj = _extractPhotosFromFirebase(d);
+      merged = _mergePhotosIntoData(
+        { vegetables: d.vegetables, schedules: d.schedules, harvests: d.harvests },
+        photosObj
+      );
+    } else {
+      alert('クラウドのデータ形式が不正です'); updateSyncBadge('ok'); return;
+    }
+    // harvestsById（即時書き込みパス）も統合
+    const toArr2 = v => !v ? [] : Array.isArray(v) ? v : (typeof v === 'object' ? Object.values(v) : []);
+    if(d.harvestsById && typeof d.harvestsById === 'object'){
+      const hMap = {};
+      (merged.harvests||[]).forEach(h => { if(h&&h.id) hMap[h.id]=h; });
+      Object.values(d.harvestsById).forEach(h => { if(h&&h.id) hMap[h.id]=h; });
+      merged.harvests = Object.values(hMap);
+    }
+    D = merged;
+    _saveLocal();
+    // クラウドから取得した写真は同期済みとして記録（次回保存時の全件再送信を防ぐ）
+    D.schedules.forEach(s => { if (s.photos && s.photos.length) _syncedPhotoIds.add(s.id); });
+    updateSyncBadge('ok');
+    // 設定タブから離れて確認しやすいビューへ
+    if (S.view === 'settings') { S.view = 'timeline'; }
+    render();
+    const photoSchedCount = D.schedules.filter(s=>s.photos&&s.photos.length>0).length;
+    const totalPhotos = D.schedules.reduce((n,s)=>n+(s.photos?s.photos.length:0),0);
+    const fbPhotoCount = d.photos ? Object.keys(d.photos).length : 0;
+    alert('✅ クラウドのデータを取得しました\n\n' +
+      'Firebase の写真ノード: ' + fbPhotoCount + '件\n' +
+      '読み込んだ写真数: ' + totalPhotos + '枚\n' +
+      '写真あり作業記録: ' + photoSchedCount + '件\n\n' +
+      (totalPhotos === 0 && fbPhotoCount > 0 ? '⚠️ 写真の読み込みに失敗しています' :
+       totalPhotos === 0 ? '📷 クラウドに写真データがありません' :
+       '→ 野菜を選んでスケジュールタブで写真を確認してください'));
+  }).catch(err => {
+    updateSyncBadge('error');
+    alert('取得エラー：' + (err.message || String(err)));
+  });
+}
+
+// Firebase の接続・読み書きを診断する
+function runFirebaseDiagnostic() {
+  if (!FB_DB || !FB_KEY) { alert('Firebase に接続されていません。設定タブでFirebaseを設定してください。'); return; }
+  const diagEl = document.getElementById('cloud-diag-btn');
+  if (diagEl) { diagEl.textContent = '⏳ 診断中(最大25秒)...'; diagEl.disabled = true; }
+
+  const done = (results) => {
+    if (diagEl) { diagEl.textContent = '🔍 Firebase 書き込みテスト（不具合診断）'; diagEl.disabled = false; }
+    alert('【Firebase 診断結果】\n\n' + results.join('\n'));
+  };
+
+  // 設定情報を取得
+  const results = [];
+  const pushPhotos = localStorage.getItem('yasai_photo_push') !== 'false';
+  try {
+    const raw = localStorage.getItem('yasai_fb');
+    const saved = raw ? JSON.parse(raw) : {};
+    const cfg = saved.config || {};
+    results.push('🔧 設定情報:');
+    results.push('   databaseURL: ' + (cfg.databaseURL || '未設定'));
+    results.push('   projectId: '   + (cfg.projectId   || '未設定'));
+    results.push('   同期キー: '    + (saved.key       || '未設定'));
+  } catch(e) { results.push('設定読み込みエラー'); }
+  results.push('');
+  results.push('📱 デバイスデータ: 作業記録' + D.schedules.length + '件 / 収穫記録' + D.harvests.length + '件');
+  results.push('📷 写真同期: ' + (pushPhotos ? 'ON' : 'OFF'));
+  results.push('');
+
+  // ① サーバー接続確認（.info/connected）
+  let connChecked = false;
+  const connTimeout = setTimeout(() => {
+    if (!connChecked) {
+      connChecked = true;
+      results.push('❌ サーバー接続: タイムアウト');
+      results.push('');
+      results.push('━━ 考えられる原因 ━━');
+      results.push('① databaseURL が間違っている');
+      results.push('   → Firebaseコンソールで正しいURLを確認し');
+      results.push('     設定タブ→「設定を再入力」してください');
+      results.push('');
+      results.push('② Realtime Database が存在しない');
+      results.push('   → コンソール→構築→Realtime Database→作成');
+      results.push('');
+      results.push('③ ネットワークがFirebaseをブロックしている');
+      results.push('   → Wi-Fiを切り替えてみてください');
+      done(results);
+    }
+  }, 5000);
+
+  FB_DB.ref('.info/connected').once('value').then(snap => {
+    if (connChecked) return;
+    clearTimeout(connTimeout);
+    connChecked = true;
+    const connected = snap.val();
+    results.push(connected ? '✅ サーバー接続: 確立' : '❌ サーバー接続: オフライン（Firebaseに届いていない）');
+    results.push('');
+
+    if (!connected) {
+      results.push('━━ 接続できない原因 ━━');
+      results.push('① databaseURL が間違っている可能性が高い');
+      results.push('   正しいURLの確認方法:');
+      results.push('   Firebaseコンソール → プロジェクト設定 →');
+      results.push('   「マイアプリ」→ firebaseConfig の databaseURL');
+      results.push('');
+      results.push('② Realtime Database のリージョンが');
+      results.push('   URLに含まれていない（-default-rtdb が必要）');
+      results.push('   正しい例: https://プロジェクト名-default-rtdb.firebaseio.com/');
+      results.push('            https://プロジェクト名-default-rtdb.asia-southeast1.firebasedatabase.app/');
+      done(results);
+      return;
+    }
+
+    // ② Firebase に保存済みの写真数を確認
+    FB_DB.ref('yasai/'+FB_KEY+'/photos').once('value').then(photoSnap => {
+      const ph = photoSnap.val();
+      const photoCount = ph ? Object.keys(ph).length : 0;
+      results.push('📷 Firebase の写真保存数: ' + photoCount + '件');
+      results.push('   ※ スマホで写真を登録してから5秒後にこの数が増えていれば正常です');
+      results.push('');
+    }).catch(()=>{});
+
+    // ③ 書き込みテスト（20秒待つ）
+    const writeTimeout = setTimeout(() => {
+      results.push('❌ 書き込み: タイムアウト（20秒）');
+      results.push('→ 写真登録直後はこのテストが失敗する場合があります');
+      results.push('→ 30秒待ってから再度テストしてください');
+      results.push('→ それでも失敗する場合はFirebaseルールを確認してください');
+      done(results);
+    }, 20000);
+
+    FB_DB.ref('yasai/'+FB_KEY+'/diagTest').set({ ts: Date.now() })
+    .then(() => {
+      clearTimeout(writeTimeout);
+      results.push('✅ 書き込み: 成功');
+      results.push('→ Firebase は正常に動作しています');
+      FB_DB.ref('yasai/'+FB_KEY+'/diagTest').remove();
+      done(results);
+    })
+    .catch(err => {
+      clearTimeout(writeTimeout);
+      if (err.message && err.message.includes('PERMISSION_DENIED')) {
+        results.push('❌ 書き込み: 権限エラー（ルール設定を確認）');
+      } else {
+        results.push('❌ 書き込みエラー: ' + (err.message || String(err)));
+      }
+      done(results);
+    });
+  }).catch(err => {
+    if (!connChecked) {
+      clearTimeout(connTimeout);
+      connChecked = true;
+      results.push('❌ 接続確認エラー: ' + (err.message || String(err)));
+      done(results);
+    }
+  });
+}
+
+// Promise が指定時間以内に完了しなければタイムアウトとして reject する
+// （モバイル回線が不安定だとFirebaseの書き込みが永久に保留され、
+//   同期バッジが「同期中」のまま固まることがあるための安全策）
+function _withTimeout(promise, ms) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('タイムアウト（' + (ms/1000) + '秒、通信状況を確認してください）')), ms);
+    promise.then(
+      v => { clearTimeout(timer); resolve(v); },
+      e => { clearTimeout(timer); reject(e); }
+    );
+  });
+}
+
+function disconnectCloud() {
+  if (FB_DB && FB_KEY && FB_LISTENER)
+    FB_DB.ref('yasai/'+FB_KEY).off('value', FB_LISTENER);
+  FB_DB = null; FB_KEY = null; FB_LISTENER = null;
+  localStorage.removeItem('yasai_fb');
+  updateSyncBadge('none');
+}
+
+function updateSyncBadge(status) {
+  const el = document.getElementById('sync-badge');
+  if (!el) return;
+  const MAP = {
+    none:       ['',''],
+    connecting: ['🔄','クラウドに接続中...'],
+    syncing:    ['⏳','同期中...'],
+    ok:         ['☁️✅','クラウド同期済み'],
+    error:      ['☁️❌','同期エラー（設定を確認）'],
+  };
+  const [icon, tip] = MAP[status]||['',''];
+  el.textContent = icon; el.title = tip;
+}
+
+// ===================== RENDER =====================
+function render(){
+  try { renderSidebar(); } catch(e) { console.error('renderSidebar error:', e); }
+  const main=document.getElementById('main');
+  if (!main) return;
+  try {
+    if(S.view==='timeline')main.innerHTML='',renderTimeline(main);
+    else if(S.view==='detail')renderDetail(main);
+    else if(S.view==='add-sched')renderSchedForm(main);
+    else if(S.view==='add-harvest')renderHarvestForm(main);
+    else if(S.view==='add-veg')renderVegForm(main);
+    else if(S.view==='settings')renderSettings(main);
+  } catch(e) {
+    console.error('render error (view='+S.view+'):', e);
+    main.innerHTML=`<div style="padding:24px 16px;color:#dc2626;font-size:13px;line-height:1.7">
+      <div style="font-size:20px;margin-bottom:8px">⚠️</div>
+      <div style="font-weight:bold;margin-bottom:6px">表示エラーが発生しました</div>
+      <div style="margin-bottom:12px">ページを再読み込み（リロード）してください。</div>
+      <div style="color:#999;font-size:11px;word-break:break-all">${e.message || String(e)}</div>
+    </div>`;
+  }
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.toggle('active',t.dataset.v===S.view));
+}
+
+function renderSidebar(){
+  const el=document.getElementById('veg-list');
+  el.innerHTML=D.vegetables.map(v=>`
+    <div class="veg-item${S.selVeg===v.id?' active':''}" data-vid="${v.id}">
+      <span class="veg-dot" style="background:${vegColor(v)}"></span>
+      <span class="veg-name">${v.name}</span>
+    </div>`).join('');
+}
+
+// --- Timeline ---
+function renderTimeline(container){
+  const today=new Date(); today.setHours(0,0,0,0);
+  const start=new Date(today); start.setDate(start.getDate()-90);
+  const end=new Date(today); end.setDate(end.getDate()+30);
+  const dates=[];
+  for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1))dates.push(new Date(d));
+
+  // Build lookup: date+vid -> activities[]
+  const lookup={};
+  D.schedules.forEach(s=>{
+    const k=s.date+'|'+s.vid;
+    if(!lookup[k])lookup[k]=[];
+    lookup[k].push(s);
+  });
+
+  const fmtHead=d=>{
+    const m=d.getMonth()+1,day=d.getDate();
+    const dow=['日','月','火','水','木','金','土'][d.getDay()];
+    return`${m}/${day}<br><span style="font-size:9px">${dow}</span>`;
+  };
+
+  const headCells=dates.map(d=>{
+    const isToday=d.getTime()===today.getTime();
+    const isWe=d.getDay()===0||d.getDay()===6;
+    return`<th class="tl-date-head${isToday?' today':isWe?' weekend':''}">${fmtHead(d)}</th>`;
+  }).join('');
+
+  const rows=D.vegetables.map(v=>{
+    const cells=dates.map(d=>{
+      const ds=_localDateStr(d);
+      const k=ds+'|'+v.id;
+      const entries=lookup[k]||[];
+      const isToday=d.getTime()===today.getTime();
+      if(!entries.length){
+        return`<td class="tl-cell${isToday?' today':''}" data-date="${ds}" data-vid="${v.id}"></td>`;
+      }
+      const dots=entries.slice(0,3).map(e=>`<span class="tl-dot" style="background:${actColor(e.act)}"></span>`).join('');
+      const tip=entries.map(e=>e.act).join(' / ').replace(/"/g,'&quot;');
+      return`<td class="tl-cell has-data${isToday?' today':''}" data-date="${ds}" data-vid="${v.id}" data-tip="${tip}">${dots}</td>`;
+    }).join('');
+    const c=vegColor(v);
+    return`<tr>
+      <td class="tl-veg-col"><button class="tl-veg-btn" data-vid="${v.id}" style="color:${c}">
+        <span style="font-size:14px">${vegEmoji(v)}</span>${v.name}
+      </button></td>
+      ${cells}
+    </tr>`;
+  }).join('');
+
+  container.innerHTML=`<div id="timeline-wrap">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <h2>📅 栽培管理一覧</h2>
+      <div style="font-size:11px;color:var(--muted)">
+        <span style="display:inline-flex;align-items:center;gap:3px;margin-right:8px">
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#dc2626"></span>収穫
+        </span>
+        <span style="display:inline-flex;align-items:center;gap:3px;margin-right:8px">
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#16a34a"></span>定植
+        </span>
+        <span style="display:inline-flex;align-items:center;gap:3px;margin-right:8px">
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#2563eb"></span>水やり
+        </span>
+        <span style="display:inline-flex;align-items:center;gap:3px;margin-right:8px">
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#ea580c"></span>仕立
+        </span>
+        <span style="display:inline-flex;align-items:center;gap:3px">
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#ca8a04"></span>施肥
+        </span>
+      </div>
+    </div>
+    <div class="tl-scroll">
+      <table class="tl-table">
+        <thead><tr>
+          <th class="tl-head-veg">野菜</th>
+          ${headCells}
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  </div>`;
+
+  // Scroll to today
+  requestAnimationFrame(()=>{
+    const wrap=container.querySelector('.tl-scroll');
+    const todayCells=container.querySelectorAll('.tl-date-head.today');
+    if(todayCells.length&&wrap){
+      const cell=todayCells[0];
+      wrap.scrollLeft=cell.offsetLeft-200;
+    }
+  });
+}
+
+// --- Vegetable Detail ---
+function renderDetail(container){
+  const v=_normalizeVeg(S.selVeg?getVeg(S.selVeg):null);
+  if(!v){
+    container.innerHTML=`<div class="card" style="margin:20px;text-align:center;color:var(--muted)">
+      <p style="font-size:40px">🥬</p>
+      <p>左のリストから野菜を選択してください</p>
+    </div>`;return;
+  }
+  const c=vegColor(v);
+  const scheds=D.schedules.filter(s=>s.vid===v.id).sort((a,b)=>b.date.localeCompare(a.date));
+  const harvests=D.harvests.filter(h=>h.vid===v.id).sort((a,b)=>b.date.localeCompare(a.date));
+
+  const tabs=['info','schedule','harvest'];
+  const tabLabels=['📋 基本情報','📅 スケジュール','🧺 収穫数'];
+  const tabBar=tabs.map((t,i)=>
+    `<button class="tab-btn${S.detailTab===t?' active':''}" data-dtab="${t}">${tabLabels[i]}</button>`
+  ).join('');
+
+  let tabContent='';
+  if(S.detailTab==='info') tabContent=renderInfoTab(v);
+  else if(S.detailTab==='schedule') tabContent=renderSchedTab(v,scheds);
+  else if(S.detailTab==='harvest') tabContent=renderHarvestTab(v,harvests);
+
+  container.innerHTML=`<div id="detail-wrap">
+    <div class="veg-header">
+      <div class="veg-icon" style="background:${c}22">${vegEmoji(v)}</div>
+      <div style="flex:1">
+        <div style="font-size:17px;font-weight:bold;color:${c}">${v.name}</div>
+        <div class="variety-tags">${v.varieties.map(vr=>`<span class="vtag">${vr}</span>`).join('')}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">${v.tax.family||''} ${v.tax.genus||''}</div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-outline" data-act="edit-veg" data-vid="${v.id}">✏️ 編集</button>
+        <button class="btn btn-primary" data-act="add-sched-for" data-vid="${v.id}">➕ 記録</button>
+      </div>
+    </div>
+    <div class="tab-bar">${tabBar}</div>
+    ${tabContent}
+  </div>`;
+}
+
+function renderInfoTab(v){
+  const f=(label,val)=>`<div class="field-item"><label>${label}</label><div class="val">${val||'—'}</div></div>`;
+  const ff=(label,val)=>`<div class="field-item full"><label>${label}</label><div class="val">${val||'—'}</div></div>`;
+  return`
+    <div class="section-card">
+      <div class="section-title">🔬 分類・特長</div>
+      <div class="field-group">
+        ${f('科',v.tax.family)}${f('属',v.tax.genus)}
+        ${f('原産地',v.traits.origin)}${f('耐寒・耐暑性',v.traits.coldHeat)}
+        ${f('水やり',v.traits.water)}${f('肥料',v.traits.fertilizer)}
+        ${ff('その他',v.traits.other)}
+      </div>
+    </div>
+    <div class="section-card">
+      <div class="section-title">🌱 栽培管理メモ</div>
+      <div class="field-group">
+        ${ff('土作・肥料設計',v.mgmt.soil)}
+        ${f('畝立て',v.mgmt.ridge)}${f('撒種・芋',v.mgmt.sow)}
+        ${ff('苗定植',v.mgmt.transplant)}
+        ${f('水やり',v.mgmt.water)}${f('仕立',v.mgmt.train)}
+        ${f('施肥',v.mgmt.fertilize)}${f('芽かき',v.mgmt.bud)}
+        ${f('葉かき',v.mgmt.leaf)}${f('散布',v.mgmt.spray)}
+        ${f('摘花・果',v.mgmt.flowerFruit)}${f('収穫',v.mgmt.harvest)}
+        ${f('保存方法',v.mgmt.storage)}${f('収穫数目安',v.mgmt.expected)}
+      </div>
+    </div>`;
+}
+
+function renderSchedTab(v,scheds){
+  if(!scheds.length)return`<div style="text-align:center;padding:30px;color:var(--muted)">記録がありません</div>`;
+  return scheds.map(s=>{
+    const dot=`<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${actColor(s.act)};margin-right:4px"></span>`;
+    const badge=s.plan?'<span class="badge badge-plan">予定</span>':'<span class="badge badge-actual">実績</span>';
+    const time=s.timeFrom?`${s.timeFrom}${s.timeTo?' - '+s.timeTo:''}`:'';
+    return`<div class="sched-item">
+      <div class="left">
+        <div class="date">${s.date.slice(5).replace('-','/')}</div>
+        <div style="font-size:10px;color:var(--muted)">${s.date.slice(0,4)}</div>
+        <div class="time">${time}</div>
+      </div>
+      <div class="right">
+        <div class="act">${dot}${s.act}</div>
+        ${badge}
+        ${s.memo?`<div class="memo">📝 ${s.memo}</div>`:''}
+        ${(()=>{const ps=s.photos&&s.photos.length?s.photos:s.photo?[s.photo]:[];if(!ps.length)return'';_photoGroups[s.id]=ps;return`<div class="photo-thumbs">${ps.map((src,i)=>`<img class="photo-thumb viewable-photo" src="${src}" data-gid="${s.id}" data-idx="${i}" alt="写真${i+1}" style="cursor:zoom-in">`).join('')}</div>`;})()}
+        ${gphotoLink(s)}
+        <div class="sched-actions">
+          <button class="btn btn-outline" style="font-size:11px;padding:2px 8px" data-act="edit-sched" data-id="${s.id}">✏️</button>
+          <button class="btn btn-danger" style="font-size:11px;padding:2px 8px" data-act="del-sched" data-id="${s.id}">🗑️</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderHarvestTab(v,harvests){
+  if(!harvests.length)return`<div style="text-align:center;padding:30px;color:var(--muted)">収穫記録がありません</div>`;
+  // Summary by variety
+  const totals={};
+  harvests.forEach(h=>{
+    totals[h.variety]=(totals[h.variety]||0)+h.count;
+  });
+  const totalAll=Object.values(totals).reduce((a,b)=>a+b,0);
+  const summary=Object.entries(totals).map(([vr,n])=>
+    `<tr><td>${vr}</td><td style="text-align:right">${n}</td></tr>`
+  ).join('');
+
+  const rows=harvests.map(h=>`
+    <tr>
+      <td>${h.date.slice(5).replace('-','/')}</td>
+      <td>${h.variety||'—'}</td>
+      <td style="text-align:right;font-weight:bold">${h.count}</td>
+      <td style="font-size:11px;color:var(--muted)">${h.memo||''}</td>
+      <td>
+        <button style="font-size:11px" data-act="edit-harvest" data-id="${h.id}">✏️</button>
+        <button style="font-size:11px" data-act="del-harvest" data-id="${h.id}">🗑️</button>
+      </td>
+    </tr>`).join('');
+
+  return`
+    <div class="section-card">
+      <div class="section-title">📊 品種別合計</div>
+      <table class="harvest-table">
+        <thead><tr><th>品種</th><th style="text-align:right">合計</th></tr></thead>
+        <tbody>
+          ${summary}
+          <tr class="harvest-total"><td>合計</td><td style="text-align:right">${totalAll}</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="section-card">
+      <div class="section-title">📆 収穫履歴
+        <button class="btn-sm" data-act="add-harvest-for" data-vid="${v.id}">＋ 追加</button>
+      </div>
+      <table class="harvest-table">
+        <thead><tr><th>日付</th><th>品種</th><th style="text-align:right">個数</th><th>メモ</th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+// --- Schedule Form ---
+function renderSchedForm(container){
+  const isEdit=!!S.editSchedId;
+  const s=isEdit?D.schedules.find(x=>x.id===S.editSchedId):null;
+  const selVid=s?s.vid:(S.selVeg||'');
+  const vegOpts=D.vegetables.map(v=>`<option value="${v.id}"${selVid===v.id?' selected':''}>${v.name}</option>`).join('');
+  // 既存データを「・」で分割して選択済みと自由入力に分ける（後方互換）
+  const _savedActs=s?s.act.split('・'):[];
+  const _checkedActs=_savedActs.filter(a=>ACT_TYPES.includes(a));
+  const _customAct=_savedActs.filter(a=>!ACT_TYPES.includes(a)).join('・');
+  const actCheckGrid=ACT_TYPES.map(a=>`
+    <label class="act-check-label${_checkedActs.includes(a)?' checked':''}">
+      <input type="checkbox" name="acts" value="${a}"${_checkedActs.includes(a)?' checked':''}>
+      ${a}
+    </label>`).join('');
+
+  container.innerHTML=`<div id="form-wrap">
+    <h2>${isEdit?'✏️ 記録を編集':'➕ 作業記録を追加'}</h2>
+    <form id="sched-form">
+      <div class="form-row">
+        <label>野菜 *</label>
+        <select name="vid" required>${vegOpts}</select>
+      </div>
+      <div class="form-row-2">
+        <div class="form-row">
+          <label>日付 *</label>
+          <input type="date" name="date" value="${s?s.date:_localDateStr(new Date())}" required>
+        </div>
+        <div class="form-row">
+          <label>種別</label>
+          <select name="plan">
+            <option value="false"${(!s||!s.plan)?' selected':''}>実績</option>
+            <option value="true"${s&&s.plan?' selected':''}>予定</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row-2">
+        <div class="form-row">
+          <label>開始時刻</label>
+          <input type="time" name="timeFrom" value="${s?s.timeFrom:''}">
+        </div>
+        <div class="form-row">
+          <label>終了時刻</label>
+          <input type="time" name="timeTo" value="${s?s.timeTo:''}">
+        </div>
+      </div>
+      <div class="form-row">
+        <label>実施事項 * <span style="font-weight:normal;color:var(--muted);font-size:11px">（複数選択可）</span></label>
+        <div class="act-check-grid" id="act-check-grid">${actCheckGrid}</div>
+        <input type="text" name="actCustom" id="act-custom-input"
+          placeholder="自由入力（上記以外の作業があれば）"
+          value="${_customAct}"
+          style="margin-top:8px;font-size:12px">
+      </div>
+      <div class="form-row">
+        <label>気付き・メモ</label>
+        <textarea name="memo" rows="3">${s?s.memo:''}</textarea>
+      </div>
+      <div class="form-row">
+        <label>写真（最大8枚）</label>
+        <div id="photos-preview" class="photos-grid"></div>
+        <button type="button" id="photo-add-btn" class="btn btn-outline photo-add-btn">📷 写真を追加</button>
+        <input type="file" accept="image/*" id="photo-input" style="display:none" multiple>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">※ 写真をタップして追加・×ボタンで削除（最大8枚）</div>
+      </div>
+      <div class="form-row">
+        <label>Google Photosリンク（任意）</label>
+        <input type="url" name="gphoto" value="${s?escH(s.gphoto||''):''}" placeholder="https://photos.app.goo.gl/... （共有リンクを貼り付け）">
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">※ Google Photosで写真を選び「共有」→「リンクを作成」でコピーしたURLを貼ると、記録からワンタップで開けます</div>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">${isEdit?'💾 更新':'➕ 追加'}</button>
+        <button type="button" class="btn btn-outline" id="form-cancel">キャンセル</button>
+        ${isEdit?`<button type="button" class="btn btn-danger" id="del-sched-btn" data-id="${s.id}">🗑️ 削除</button>`:''}
+      </div>
+    </form>
+  </div>`;
+
+  // チェックボタンのタップで ON/OFF 切り替え
+  document.getElementById('act-check-grid').addEventListener('change', e => {
+    const cb = e.target;
+    if (cb.type !== 'checkbox') return;
+    cb.closest('.act-check-label').classList.toggle('checked', cb.checked);
+  });
+
+  // ---- 写真管理（最大8枚）----
+  // 既存データの写真を配列として読み込む（後方互換: photo / photos どちらにも対応）
+  _editPhotos = s ? (s.photos && s.photos.length ? [...s.photos] : s.photo ? [s.photo] : []) : [];
+
+  function _renderPhotosPrev(){
+    const cont=document.getElementById('photos-preview');
+    const addBtn=document.getElementById('photo-add-btn');
+    if(!cont)return;
+    cont.innerHTML=_editPhotos.map((src,i)=>`
+      <div class="photo-item">
+        <img src="${src}" alt="写真${i+1}">
+        <button type="button" class="photo-del" data-idx="${i}" title="削除">✕</button>
+      </div>`).join('');
+    if(addBtn) addBtn.style.display=_editPhotos.length>=8?'none':'';
+  }
+  _renderPhotosPrev();
+
+  document.getElementById('photo-add-btn').addEventListener('click',()=>{
+    if(_editPhotos.length<8) document.getElementById('photo-input').click();
+  });
+  document.getElementById('photo-input').addEventListener('change',function(){
+    const files=Array.from(this.files);
+    const remaining=8-_editPhotos.length;
+    const targets=files.slice(0,remaining);
+    if(!targets.length){this.value='';return;}
+
+    // 圧縮中はボタンを無効化してスピナー表示（連打・二重送信防止）
+    const addBtn=document.getElementById('photo-add-btn');
+    if(addBtn){addBtn.disabled=true;addBtn.textContent='⏳ 処理中...';}
+
+    let loaded=0;
+    targets.forEach(f=>{
+      _compressImage(f, compressed=>{
+        if(compressed) _editPhotos.push(compressed);
+        loaded++;
+        if(loaded===targets.length){
+          _renderPhotosPrev();
+          // 圧縮完了後にボタンを再度有効化
+          const btn=document.getElementById('photo-add-btn');
+          if(btn){btn.disabled=false;btn.textContent='📷 写真を追加';}
+        }
+      });
+    });
+    this.value='';
+  });
+  document.getElementById('photos-preview').addEventListener('click',e=>{
+    const btn=e.target.closest('.photo-del');
+    if(!btn)return;
+    _editPhotos.splice(parseInt(btn.dataset.idx),1);
+    _renderPhotosPrev();
+  });
+}
+
+// --- Harvest Form ---
+function renderHarvestForm(container){
+  const isEdit=!!S.editHarvestId;
+  const h=isEdit?D.harvests.find(x=>x.id===S.editHarvestId):null;
+  const selVid=h?h.vid:(S.selVeg||'');
+  const vegOpts=D.vegetables.map(v=>`<option value="${v.id}"${selVid===v.id?' selected':''}>${v.name}</option>`).join('');
+  const selVeg=D.vegetables.find(v=>v.id===selVid);
+  const varieties=selVeg?selVeg.varieties:[];
+  const varOpts=['',...(varieties)].map(vr=>`<option value="${vr}"${h&&h.variety===vr?' selected':''}>${vr||'— 選択 —'}</option>`).join('');
+
+  container.innerHTML=`<div id="form-wrap">
+    <h2>${isEdit?'✏️ 収穫記録を編集':'🧺 収穫記録を追加'}</h2>
+    <form id="harvest-form">
+      <div class="form-row">
+        <label>野菜 *</label>
+        <select name="hvid" required id="hv-veg-sel">${vegOpts}</select>
+      </div>
+      <div class="form-row">
+        <label>品種</label>
+        <select name="variety" id="hv-variety-sel">${varOpts}</select>
+      </div>
+      <div class="form-row">
+        <label>品種（自由入力）</label>
+        <input type="text" name="varietyCustom" placeholder="品種名を直接入力" value="${h?h.variety:''}">
+      </div>
+      <div class="form-row">
+        <label>日付 *</label>
+        <input type="date" name="date" value="${h?h.date:_localDateStr(new Date())}" required>
+      </div>
+      <div class="form-row">
+        <label>収穫数（個・本・g等） *</label>
+        <input type="number" name="count" min="0" value="${h?h.count:''}" required>
+      </div>
+      <div class="form-row">
+        <label>メモ</label>
+        <textarea name="memo" rows="2">${h?h.memo:''}</textarea>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">${isEdit?'💾 更新':'➕ 追加'}</button>
+        <button type="button" class="btn btn-outline" id="form-cancel">キャンセル</button>
+        ${isEdit?`<button type="button" class="btn btn-danger" id="del-harvest-btn" data-id="${h.id}">🗑️ 削除</button>`:''}
+      </div>
+    </form>
+  </div>`;
+
+  document.getElementById('hv-veg-sel').addEventListener('change',function(){
+    const vg=getVeg(this.value);
+    const sel=document.getElementById('hv-variety-sel');
+    sel.innerHTML=['',  ...(vg?vg.varieties:[])].map(vr=>`<option value="${vr}">${vr||'— 選択 —'}</option>`).join('');
+  });
+}
+
+// --- Veg Form ---
+function renderVegForm(container){
+  const isEdit=!!S.editVegId;
+  const v=isEdit?_normalizeVeg(getVeg(S.editVegId)):{
+    id:newId(),name:'',varieties:[],
+    tax:{order:'',family:'',genus:''},
+    traits:{origin:'',coldHeat:'',water:'',fertilizer:'',other:''},
+    mgmt:{soil:'',ridge:'',sow:'',transplant:'',water:'',train:'',fertilize:'',bud:'',leaf:'',spray:'',flowerFruit:'',harvest:'',storage:'',expected:''},
+    color:D.vegetables.length%VEG_COLORS.length
+  };
+  const fi=(name,label,val,placeholder='')=>
+    `<div class="form-row"><label>${label}</label><input type="text" name="${name}" value="${escH(val)}" placeholder="${placeholder}"></div>`;
+
+  container.innerHTML=`<div id="form-wrap">
+    <h2>${isEdit?'✏️ 野菜を編集':'🌱 野菜を追加'}</h2>
+    <form id="veg-form">
+      <div class="form-row">
+        <label>野菜名 *</label>
+        <input type="text" name="name" value="${escH(v.name)}" required>
+      </div>
+      <div class="form-row">
+        <label>品種（カンマ区切り）</label>
+        <input type="text" name="varieties" value="${escH(v.varieties.join(','))}" placeholder="例: 麗夏, 世界一">
+      </div>
+      <h3 style="margin:12px 0 4px">🔬 分類</h3>
+      <div class="form-row-2">
+        ${fi('taxOrder','目',v.tax.order)}${fi('taxFamily','科',v.tax.family)}
+      </div>
+      ${fi('taxGenus','属',v.tax.genus)}
+      <h3 style="margin:12px 0 4px">🌿 特長</h3>
+      ${fi('origin','原産地',v.traits.origin,'例: 南米アンデス')}
+      <div class="form-row-2">
+        ${fi('coldHeat','耐寒・耐暑性',v.traits.coldHeat)}${fi('water','水',v.traits.water)}
+      </div>
+      ${fi('fertilizer','肥料',v.traits.fertilizer)}
+      ${fi('otherTraits','その他',v.traits.other)}
+      <h3 style="margin:12px 0 4px">📋 栽培管理メモ</h3>
+      ${fi('soil','土作・肥料設計',v.mgmt.soil,'例: NPK, pH6-6.5')}
+      ${fi('ridge','畝立て',v.mgmt.ridge,'例: 畝幅60cm 株間50cm')}
+      ${fi('sow','撒種・芋',v.mgmt.sow,'例: 深さ2cm 好光性')}
+      ${fi('transplant','苗定植',v.mgmt.transplant,'例: 支柱必要 トンネル')}
+      ${fi('mgWater','水やり',v.mgmt.water,'例: 乾燥気味 雨除け')}
+      ${fi('train','仕立',v.mgmt.train,'例: 1本仕立 脇芽かき')}
+      ${fi('fertilize','施肥',v.mgmt.fertilize,'例: 2週毎追肥')}
+      ${fi('bud','芽かき',v.mgmt.bud)}
+      ${fi('leaf','葉かき',v.mgmt.leaf)}
+      ${fi('spray','散布',v.mgmt.spray)}
+      ${fi('flowerFruit','摘花・果',v.mgmt.flowerFruit)}
+      ${fi('harvest','収穫',v.mgmt.harvest,'例: 長さ20cmで収穫')}
+      ${fi('storage','保存方法',v.mgmt.storage,'例: 冷蔵1週間')}
+      ${fi('expected','収穫数目安',v.mgmt.expected,'例: 1株30-50個')}
+      <input type="hidden" name="vid" value="${v.id}">
+      <input type="hidden" name="color" value="${v.color}">
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">${isEdit?'💾 更新':'🌱 追加'}</button>
+        <button type="button" class="btn btn-outline" id="form-cancel">キャンセル</button>
+        ${isEdit?`<button type="button" class="btn btn-danger" id="del-veg-btn" data-id="${v.id}">🗑️ 削除</button>`:''}
+      </div>
+    </form>
+  </div>`;
+}
+
+// --- Settings ---
+function renderSettings(container){
+  const fbSaved = localStorage.getItem('yasai_fb');
+  let savedKey = '';
+  try { savedKey = fbSaved ? JSON.parse(fbSaved).key : ''; } catch(e){}
+  // FB_DBの初期化完了を待たず、localStorageに設定が保存済みかで判定する
+  const isConnected = !!(fbSaved && savedKey);
+  const syncReady   = !!FB_DB; // 実際にFirebaseに繋がっているか
+
+  const hasError = !!(FB_ERROR);
+  const bgColor  = syncReady ? '#e8f5e8' : hasError ? '#fee2e2' : '#fffbeb';
+  const icon     = syncReady ? '☁️✅'   : hasError ? '❌'       : '🔄';
+  const title    = syncReady ? 'クラウド同期が有効です'
+                 : hasError  ? '接続エラー'
+                 :             'Firebaseに接続中... (しばらくお待ちください)';
+
+  const errorBlock = hasError ? `
+    <div style="margin-top:8px;background:#fff;border:1px solid #fca5a5;border-radius:6px;padding:8px;font-size:11px;color:#991b1b;white-space:pre-wrap">${escH(FB_ERROR)}</div>
+    <div style="margin-top:8px;font-size:11px;color:var(--muted)">
+      よくある原因：<br>
+      ① Realtime Databaseが「ロックモード」→ Firebaseコンソールで「ルール」を開き<br>
+      　 <code>.read/.write を true</code> に変更して「公開」をクリック<br>
+      ② Realtime Databaseが未作成 → コンソールで「構築」→「Realtime Database」→「作成」<br>
+      ③ databaseURLが間違っている → コンソールのRTDB URLと一致しているか確認
+    </div>
+    <button class="btn btn-outline" id="cloud-reset-btn" style="margin-top:8px">🔧 設定を再入力する</button>
+  ` : '';
+
+  const photoPush = localStorage.getItem('yasai_photo_push') !== 'false';
+  const cloudSection = isConnected ? `
+    <div style="background:${bgColor};border-radius:6px;padding:10px;margin-bottom:10px;display:flex;align-items:flex-start;gap:8px">
+      <span style="font-size:20px;flex:0 0 auto">${icon}</span>
+      <div style="flex:1">
+        <div style="font-weight:bold;color:var(--primary-d)">${title}</div>
+        <div style="font-size:11px;color:var(--muted)">同期キー: ${escH(savedKey)}</div>
+        ${errorBlock}
+      </div>
+    </div>
+
+    <div style="background:#f8f9fa;border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:10px">
+      <div style="font-weight:bold;font-size:12px;margin-bottom:8px">📷 写真同期モード</div>
+      <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;margin:0;font-size:12px;color:var(--text)">
+        <input type="checkbox" id="photo-push-toggle" ${photoPush?'checked':''} style="width:auto;margin-top:2px">
+        <span>
+          <b>このデバイスの写真をクラウドへ保存する</b><br>
+          <span style="color:var(--muted);font-size:11px">
+            📱 スマホ（写真をアップする端末）は <b>ON</b>にしてください<br>
+            💻 PC（写真をアップしない端末）は <b>OFF</b>にすると、PCの操作でスマホの写真が消えることを防げます
+          </span>
+        </span>
+      </label>
+      ${!photoPush?`<div style="margin-top:6px;background:#fef9c3;border-radius:4px;padding:6px;font-size:11px;color:#78350f">
+        ⚠️ 写真同期OFF：このデバイスはテキストデータのみ同期します。写真はクラウドから受信のみです。
+      </div>`:''}
+    </div>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+      <button class="btn btn-primary" id="cloud-push-btn" style="font-size:12px">📤 この端末 → クラウド</button>
+      <button class="btn btn-outline" id="cloud-pull-btn" style="font-size:12px">📥 クラウド → この端末</button>
+      <button class="btn btn-danger" id="cloud-disconnect-btn" style="font-size:12px">🔌 同期を切断する</button>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-top:6px;line-height:1.7">
+      📤 <b>この端末→クラウド</b>：この端末の写真をクラウドへ強制送信（他の端末に上書き）<br>
+      📥 <b>クラウド→この端末</b>：クラウドの最新データ（他の端末の写真含む）をこの端末に取得
+    </div>
+  ` : DEFAULT_FB_CONFIG ? `
+    <div style="background:#fffbeb;border-radius:6px;padding:10px;margin-bottom:12px;font-size:12px;color:#78350f">
+      <strong>🔑 同期キー未設定</strong>：家族で共有している同期キーを入力すると、他の端末とデータ・写真が自動で同期されます。
+    </div>
+    <form id="firebase-key-form">
+      <label>同期キー</label>
+      <input type="text" name="fbKey" placeholder="家族で決めた同期キーを入力" required>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">※ 全端末で同じキーを入力してください。キーを知っている人だけがデータを見られます。</div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">☁️ 同期を開始する</button>
+      </div>
+    </form>
+  ` : `
+    <div style="background:#fffbeb;border-radius:6px;padding:10px;margin-bottom:12px;font-size:12px;color:#78350f">
+      <strong>⚠️ 未設定</strong>：以下の手順でFirebaseを設定すると、PCとスマホが自動で同期されます。
+    </div>
+    <details style="margin-bottom:12px">
+      <summary style="cursor:pointer;font-weight:bold;color:var(--primary-d);font-size:12px">📖 Firebase設定手順（クリックで展開）</summary>
+      <ol style="margin:8px 0 0 16px;font-size:12px;line-height:1.8;color:var(--muted)">
+        <li><a href="https://console.firebase.google.com" target="_blank" style="color:var(--primary)">console.firebase.google.com</a> をブラウザで開く</li>
+        <li>「プロジェクトを追加」→ 名前（例:家庭菜園）を入力 → 作成</li>
+        <li>左メニュー「構築」→「Realtime Database」→「データベースを作成」</li>
+        <li>「テストモードで開始」を選択 → 「有効にする」</li>
+        <li>プロジェクトのトップページに戻り「&lt;/&gt;」ボタン（ウェブアプリ）をクリック</li>
+        <li>アプリ名を入力（例:yasai）→「アプリを登録」</li>
+        <li>表示された <code>firebaseConfig = { ... }</code> の <strong>{ } の中身だけ</strong>をコピー</li>
+        <li>下のフォームに貼り付けて保存</li>
+      </ol>
+    </details>
+    <form id="firebase-form">
+      <div style="background:#dbeafe;border-radius:6px;padding:10px;font-size:12px;margin-bottom:10px">
+        <strong>📋 手順</strong><br>
+        ① Firebase設定を貼り付け（<span style="color:#6b7280">省略可</span>）<br>
+        ② <strong style="color:#dc2626">データベースURLを必ず入力</strong>（最重要！）<br>
+        ③ 同期キーを入力して「開始」
+      </div>
+      <label>① Firebase設定（<code>const firebaseConfig = { ... };</code> を丸ごと貼り付け・省略可）</label>
+      <textarea name="fbConfig" rows="8" style="font-family:monospace;font-size:11px"
+        placeholder='const firebaseConfig = {&#10;  apiKey: "AIzaSy...",&#10;  authDomain: "your-app.firebaseapp.com",&#10;  projectId: "your-app",&#10;  storageBucket: "your-app.appspot.com",&#10;  messagingSenderId: "123456789",&#10;  appId: "1:123456:web:abcdef"&#10;};'></textarea>
+      <label style="margin-top:10px">② データベースURL <span style="color:#dc2626;font-weight:bold">*必須・ここが最重要*</span></label>
+      <input type="text" name="dbUrl" placeholder="https://your-app-default-rtdb.asia-southeast1.firebasedatabase.app" required style="font-family:monospace;font-size:12px">
+      <div style="font-size:11px;background:#fef9c3;border-radius:4px;padding:6px;margin-top:4px">
+        📍 取得場所：Firebaseコンソール →「構築」→「<strong>Realtime Database</strong>」→ データタブ上部に表示される<br>
+        　　例: <code>https://〇〇-default-rtdb.asia-southeast1.firebasedatabase.app</code>
+      </div>
+      <label style="margin-top:12px">③ 同期キー <span style="font-weight:normal;color:var(--muted)">（自分だけが知る好きな文字列）</span></label>
+      <input type="text" name="fbKey" placeholder="例: MyGarden2024XYZ" required style="margin-bottom:4px">
+      <div style="font-size:11px;color:var(--muted)">※ このキーが一致する端末間でデータが同期されます</div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">☁️ 同期を開始する</button>
+      </div>
+    </form>
+  `;
+
+  container.innerHTML=`<div id="settings-wrap">
+    <h2>⚙️ 設定</h2>
+    <div class="section-card" style="margin-top:10px">
+      <div class="section-title">☁️ クラウド同期（PC ↔ スマホ 自動同期）</div>
+      ${cloudSection}
+    </div>
+    <div class="section-card" style="margin-top:10px">
+      <div class="section-title">データ管理</div>
+      <div style="display:flex;flex-direction:column;gap:10px;padding-top:8px">
+        <button class="btn btn-outline" id="cloud-diag-btn" style="background:#fff3cd;border-color:#ffc107;font-weight:bold">🔍 Firebase 書き込みテスト（不具合診断）</button>
+        <button class="btn btn-outline" id="export-btn">📤 データをエクスポート (JSON)</button>
+        <div>
+          <label>📥 データをインポート (JSON)</label>
+          <input type="file" id="import-file" accept=".json" style="margin-top:4px">
+        </div>
+        <button class="btn btn-danger" id="reset-btn">🔄 初期データにリセット</button>
+      </div>
+    </div>
+    <div class="section-card" style="margin-top:10px">
+      <div class="section-title">統計</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding-top:8px">
+        <div style="text-align:center"><div style="font-size:28px;font-weight:bold;color:var(--primary)">${D.vegetables.length}</div><div style="font-size:11px;color:var(--muted)">野菜種類</div></div>
+        <div style="text-align:center"><div style="font-size:28px;font-weight:bold;color:var(--primary)">${D.schedules.length}</div><div style="font-size:11px;color:var(--muted)">作業記録</div></div>
+        <div style="text-align:center"><div style="font-size:28px;font-weight:bold;color:var(--primary)">${D.harvests.reduce((s,h)=>s+h.count,0)}</div><div style="font-size:11px;color:var(--muted)">総収穫数</div></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ===================== POPUP =====================
+function showPopup(title, bodyHtml){
+  document.getElementById('popup-title').textContent=title;
+  document.getElementById('popup-body').innerHTML=bodyHtml;
+  document.getElementById('popup').classList.add('show');
+}
+function hidePopup(){document.getElementById('popup').classList.remove('show');}
+
+// ===================== HELPERS =====================
+function escH(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function fmtDate(d){const p=d.split('-');return p[0]+'年'+(+p[1])+'月'+(+p[2])+'日';}
+// Google Photos共有リンクのボタンHTML（httpsのURLのみ表示）
+function gphotoLink(s){
+  if(!s.gphoto||!/^https:\/\//.test(s.gphoto))return'';
+  return `<div><a href="${escH(s.gphoto)}" target="_blank" rel="noopener" class="gphoto-link">📷 Google Photosで開く</a></div>`;
+}
+
+// ===================== EVENTS =====================
+document.addEventListener('click',e=>{
+  const t=e.target.closest('[data-act],[data-v],[data-vid],[data-dtab],[data-date]');
+  if(!t)return;
+
+  // Nav tabs
+  if(t.dataset.v){
+    S.view=t.dataset.v; S.editSchedId=null; S.editHarvestId=null; S.editVegId=null;
+    if(S.view==='detail'&&!S.selVeg){}
+    render(); return;
+  }
+
+  // Vegetable sidebar
+  if(t.dataset.vid&&!t.dataset.act&&!t.dataset.date){
+    S.selVeg=t.dataset.vid; S.view='detail'; S.detailTab='info';
+    render(); return;
+  }
+
+  // Detail tabs
+  if(t.dataset.dtab){
+    S.detailTab=t.dataset.dtab;
+    render(); // 即時タブ切り替え
+    // 収穫タブを開くときは Firebase から最新データを取得して再描画
+    if(S.detailTab==='harvest' && FB_DB && FB_KEY){
+      _fetchAndMergeHarvests().then(()=>render());
+    }
+    return;
+  }
+
+  // Timeline cell click
+  if(t.dataset.date&&t.dataset.vid){
+    const date=t.dataset.date, vid=t.dataset.vid;
+    const entries=D.schedules.filter(s=>s.date===date&&s.vid===vid);
+    const veg=getVeg(vid);
+    if(!entries.length){
+      // Quick-add
+      S.selVeg=vid; S.editSchedId=null;
+      S.view='add-sched'; render();
+      // Pre-fill date
+      const di=document.querySelector('[name="date"]');
+      if(di)di.value=date;
+    } else {
+      const body=entries.map(s=>`<div class="popup-entry">
+        <div style="font-weight:bold;color:${actColor(s.act)}">${s.act}</div>
+        ${s.timeFrom?`<div style="font-size:11px;color:var(--muted)">${s.timeFrom}${s.timeTo?' - '+s.timeTo:''}</div>`:''}
+        ${s.plan?'<span class="badge badge-plan">予定</span>':'<span class="badge badge-actual">実績</span>'}
+        ${s.memo?`<div style="font-size:12px;color:var(--muted);margin-top:4px">📝 ${s.memo}</div>`:''}
+        ${(()=>{const ps=s.photos&&s.photos.length?s.photos:s.photo?[s.photo]:[];if(!ps.length)return'';_photoGroups[s.id]=ps;return`<div class="detail-photos">${ps.map((src,i)=>`<img src="${src}" data-gid="${s.id}" data-idx="${i}" class="viewable-photo" alt="写真${i+1}" style="cursor:zoom-in">`).join('')}</div>`;})()}
+        ${gphotoLink(s)}
+        <div style="margin-top:6px;display:flex;gap:6px">
+          <button class="btn btn-outline" style="font-size:11px;padding:2px 8px" data-act="edit-sched" data-id="${s.id}">✏️</button>
+          <button class="btn btn-danger" style="font-size:11px;padding:2px 8px" data-act="del-sched" data-id="${s.id}">🗑️</button>
+        </div>
+      </div>`).join('');
+      showPopup(`${vegEmoji(veg)} ${veg.name} - ${fmtDate(date)}`,body);
+    }
+    return;
+  }
+
+  const act=t.dataset.act;
+  if(!act)return;
+
+  // Actions
+  if(act==='edit-sched'){
+    S.editSchedId=t.dataset.id; S.view='add-sched'; hidePopup(); render(); return;
+  }
+  if(act==='del-sched'){
+    if(!confirm('この記録を削除しますか？'))return;
+    _pendingPhotoDeletes.add(t.dataset.id);
+    D.schedules=D.schedules.filter(s=>s.id!==t.dataset.id);
+    saveData(); hidePopup(); render(); return;
+  }
+  if(act==='edit-harvest'){
+    S.editHarvestId=t.dataset.id; S.view='add-harvest'; render(); return;
+  }
+  if(act==='del-harvest'){
+    if(!confirm('この収穫記録を削除しますか？'))return;
+    const delId=t.dataset.id;
+    _pendingHarvestDeletes.add(delId);
+    D.harvests=D.harvests.filter(h=>h.id!==delId);
+    saveData();
+    // harvestsById からも即座に削除
+    if(FB_DB&&FB_KEY) FB_DB.ref('yasai/'+FB_KEY+'/harvestsById/'+delId).remove();
+    render(); return;
+  }
+  if(act==='edit-veg'){
+    S.editVegId=t.dataset.vid; S.view='add-veg'; render(); return;
+  }
+  if(act==='add-sched-for'){
+    S.selVeg=t.dataset.vid; S.editSchedId=null; S.view='add-sched'; render(); return;
+  }
+  if(act==='add-harvest-for'){
+    S.selVeg=t.dataset.vid; S.editHarvestId=null; S.view='add-harvest'; render(); return;
+  }
+});
+
+// Sidebar toggle
+document.getElementById('toggle-sb').addEventListener('click',()=>{
+  document.getElementById('sidebar').classList.toggle('collapsed');
+});
+
+// Popup close
+document.getElementById('popup-close').addEventListener('click',hidePopup);
+document.getElementById('popup').addEventListener('click',e=>{
+  if(e.target===document.getElementById('popup'))hidePopup();
+});
+
+// Add vegetable button
+document.getElementById('add-veg-btn').addEventListener('click',()=>{
+  S.editVegId=null; S.view='add-veg'; render();
+});
+
+// Form cancel
+document.addEventListener('click',e=>{
+  if(e.target.id==='form-cancel'){
+    S.view=S.selVeg?'detail':'timeline';
+    S.editSchedId=null; S.editHarvestId=null; S.editVegId=null;
+    render();
+  }
+  if(e.target.id==='del-sched-btn'){
+    if(!confirm('削除しますか？'))return;
+    _pendingPhotoDeletes.add(e.target.dataset.id);
+    D.schedules=D.schedules.filter(s=>s.id!==e.target.dataset.id);
+    saveData(); S.view=S.selVeg?'detail':'timeline'; S.editSchedId=null; render();
+  }
+  if(e.target.id==='del-harvest-btn'){
+    if(!confirm('削除しますか？'))return;
+    const delId2=e.target.dataset.id;
+    _pendingHarvestDeletes.add(delId2);
+    D.harvests=D.harvests.filter(h=>h.id!==delId2);
+    saveData();
+    if(FB_DB&&FB_KEY) FB_DB.ref('yasai/'+FB_KEY+'/harvestsById/'+delId2).remove();
+    S.view=S.selVeg?'detail':'timeline'; S.editHarvestId=null; render();
+  }
+  if(e.target.id==='del-veg-btn'){
+    if(!confirm('この野菜と関連する全記録を削除しますか？'))return;
+    const vid=e.target.dataset.id;
+    D.vegetables=D.vegetables.filter(v=>v.id!==vid);
+    // 削除される全スケジュールの写真をFirebaseからも消す
+    D.schedules.filter(s=>s.vid===vid).forEach(s=>_pendingPhotoDeletes.add(s.id));
+    D.schedules=D.schedules.filter(s=>s.vid!==vid);
+    // 削除される収穫データをリスナーで復活させないよう追跡
+    D.harvests.filter(h=>h.vid===vid).forEach(h=>_pendingHarvestDeletes.add(h.id));
+    D.harvests=D.harvests.filter(h=>h.vid!==vid);
+    if(S.selVeg===vid)S.selVeg=null;
+    saveData(); S.view='timeline'; S.editVegId=null; render();
+  }
+  if(e.target.id==='export-btn'){
+    const blob=new Blob([JSON.stringify(D,null,2)],{type:'application/json'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='yasai_data_'+_localDateStr(new Date())+'.json';
+    a.click();
+  }
+  if(e.target.id==='reset-btn'){
+    if(!confirm('全データを初期状態に戻します。よろしいですか？'))return;
+    localStorage.removeItem('yasai_v2');
+    loadData(); render();
+  }
+});
+
+// Import
+document.addEventListener('change',e=>{
+  if(e.target.id==='import-file'){
+    const f=e.target.files[0]; if(!f)return;
+    const r=new FileReader();
+    r.onload=ev=>{
+      try{
+        const d=JSON.parse(ev.target.result);
+        if(d.vegetables&&d.schedules&&d.harvests){
+          D=d; saveData(); render(); alert('インポートしました');
+        } else alert('無効なデータ形式です');
+      }catch(err){alert('JSONの解析に失敗しました');}
+    };
+    r.readAsText(f);
+  }
+});
+
+// Schedule form submit
+document.addEventListener('submit',e=>{
+  if(e.target.id==='sched-form'){
+    e.preventDefault();
+    const fd=new FormData(e.target);
+    // 複数チェックされた実施事項を収集し「・」で結合
+    const checkedActs=Array.from(e.target.querySelectorAll('input[name="acts"]:checked')).map(cb=>cb.value);
+    const customAct=(fd.get('actCustom')||'').trim();
+    const allActs=[...checkedActs,...(customAct?[customAct]:[])];
+    if(!allActs.length){alert('実施事項を1つ以上選択または入力してください');return;}
+    const act=allActs.join('・');
+    // _editPhotos は renderSchedForm() 内で初期化済み
+    // null（圧縮失敗）は除外してから保存
+    const photos = _editPhotos.filter(Boolean).slice(0, 8);
+    // Google Photosリンク：https のURLのみ許可（誤入力・不正スキームを弾く）
+    let gphoto=(fd.get('gphoto')||'').trim();
+    if(gphoto && !/^https:\/\//.test(gphoto)){
+      alert('Google Photosリンクは https:// で始まるURLを貼り付けてください');
+      return;
+    }
+    const entry={
+      id:S.editSchedId||newId(),
+      vid:fd.get('vid'),
+      date:fd.get('date'),
+      timeFrom:fd.get('timeFrom')||'',
+      timeTo:fd.get('timeTo')||'',
+      act,
+      memo:fd.get('memo')||'',
+      photos,                    // 最大8枚の配列
+      photo:photos[0]||null,     // 後方互換のため先頭を残す
+      gphoto,                    // Google Photos共有リンク（任意）
+      plan:fd.get('plan')==='true'
+    };
+    if(S.editSchedId){
+      const idx=D.schedules.findIndex(s=>s.id===S.editSchedId);
+      if(idx>=0)D.schedules[idx]=entry;
+      else D.schedules.push(entry); // 万一インデックスが見つからない場合も追加
+    } else D.schedules.push(entry);
+    // この記録の写真は変更された可能性があるため、再送信が必要な状態にする
+    if (photos.length > 0) _syncedPhotoIds.delete(entry.id);
+    // saveData() のエラー（localStorage容量超過等）でも必ず画面遷移する
+    try { saveData(); } catch(e) { saveToCloud(); }
+    // 写真がある場合はデバウンスを待たずに即座にFirebaseへ書き込む
+    // （リスナーの競合・タイミング問題を回避するため）
+    if (photos.length > 0 && FB_DB && FB_KEY) {
+      const pushPhotos = localStorage.getItem('yasai_photo_push') !== 'false';
+      if (pushPhotos) {
+        const photoUpdate = {};
+        photoUpdate['yasai/'+FB_KEY+'/photos/'+entry.id] = photos;
+        FB_DB.ref().update(photoUpdate)
+          .then(() => { _syncedPhotoIds.add(entry.id); updateSyncBadge('ok'); })
+          .catch(err => { console.warn('写真の即時保存エラー:', err); updateSyncBadge('error'); });
+      }
+    }
+    S.editSchedId=null;
+    S.selVeg=entry.vid;
+    S.view='detail'; S.detailTab='schedule';
+    render();
+    return;
+  }
+
+  if(e.target.id==='harvest-form'){
+    e.preventDefault();
+    const fd=new FormData(e.target);
+    const variety=(fd.get('varietyCustom')||'').trim()||(fd.get('variety')||'').trim()||'';
+    const entry={
+      id:S.editHarvestId||newId(),
+      vid:fd.get('hvid'),
+      variety,
+      date:fd.get('date'),
+      count:parseInt(fd.get('count'))||0,
+      memo:fd.get('memo')||''
+    };
+    if(S.editHarvestId){
+      const idx=D.harvests.findIndex(h=>h.id===S.editHarvestId);
+      if(idx>=0)D.harvests[idx]=entry;
+      else D.harvests.push(entry); // 万一インデックスが見つからない場合も追加
+    } else D.harvests.push(entry);
+    saveData();
+    // 収穫データをデバウンスを待たずに即座にFirebaseへ直接書き込む
+    // （写真と同じ仕組み：リスナー競合・debounce問題を回避）
+    if (FB_DB && FB_KEY) {
+      updateSyncBadge('syncing');
+      // 個別のエントリを yasai/KEY/harvestsById/ID に書き込む（個別パスで競合を防ぐ）
+      const harvestUpdate = {};
+      harvestUpdate['yasai/'+FB_KEY+'/harvestsById/'+entry.id] = entry;
+      // meta/harvests も合わせて更新して整合性を保つ
+      harvestUpdate['yasai/'+FB_KEY+'/meta/harvests'] = D.harvests;
+      _withTimeout(FB_DB.ref().update(harvestUpdate), 20000)
+        .then(() => updateSyncBadge('ok'))
+        .catch(err => { console.warn('収穫データ即時保存エラー:', err); updateSyncBadge('error'); });
+    }
+    S.editHarvestId=null;
+    S.selVeg=entry.vid; S.view='detail'; S.detailTab='harvest';
+    render();
+    return;
+  }
+
+  if(e.target.id==='veg-form'){
+    e.preventDefault();
+    const fd=new FormData(e.target);
+    const vid=fd.get('vid');
+    const isEdit=D.vegetables.some(v=>v.id===vid);
+    const varieties=(fd.get('varieties')||'').split(',').map(s=>s.trim()).filter(Boolean);
+    const entry={
+      id:vid, name:fd.get('name'), varieties,
+      tax:{order:fd.get('taxOrder')||'',family:fd.get('taxFamily')||'',genus:fd.get('taxGenus')||''},
+      traits:{origin:fd.get('origin')||'',coldHeat:fd.get('coldHeat')||'',
+              water:fd.get('water')||'',fertilizer:fd.get('fertilizer')||'',other:fd.get('otherTraits')||''},
+      mgmt:{soil:fd.get('soil')||'',ridge:fd.get('ridge')||'',sow:fd.get('sow')||'',
+            transplant:fd.get('transplant')||'',water:fd.get('mgWater')||'',train:fd.get('train')||'',
+            fertilize:fd.get('fertilize')||'',bud:fd.get('bud')||'',leaf:fd.get('leaf')||'',
+            spray:fd.get('spray')||'',flowerFruit:fd.get('flowerFruit')||'',
+            harvest:fd.get('harvest')||'',storage:fd.get('storage')||'',expected:fd.get('expected')||''},
+      color:parseInt(fd.get('color'))||0
+    };
+    if(isEdit){
+      const idx=D.vegetables.findIndex(v=>v.id===vid);
+      if(idx>=0)D.vegetables[idx]=entry;
+    } else {
+      entry.color=D.vegetables.length%VEG_COLORS.length;
+      D.vegetables.push(entry);
+    }
+    saveData();
+    S.editVegId=null; S.selVeg=vid; S.view='detail'; S.detailTab='info';
+    render();
+    return;
+  }
+});
+
+// Firebase key-only form submit（内蔵設定を使用・キーだけ入力）
+document.addEventListener('submit', e => {
+  if (e.target.id !== 'firebase-key-form') return;
+  e.preventDefault();
+  const key = (new FormData(e.target).get('fbKey')||'').trim();
+  if (!key) { alert('同期キーを入力してください'); return; }
+  if (!DEFAULT_FB_CONFIG) { alert('内蔵のFirebase設定がありません'); return; }
+  localStorage.setItem('yasai_fb', JSON.stringify({config: DEFAULT_FB_CONFIG, key}));
+  FB_KEY = key;
+  render();
+  initFirebase(DEFAULT_FB_CONFIG);
+});
+
+// Firebase form submit
+document.addEventListener('submit', e => {
+  if (e.target.id !== 'firebase-form') return;
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  let raw = (fd.get('fbConfig')||'').trim();
+  const key = (fd.get('fbKey')||'').trim();
+  const dbUrl = (fd.get('dbUrl')||'').trim();
+
+  if (!key) { alert('同期キー（③）を入力してください'); return; }
+  if (!dbUrl) { alert('データベースURL（②）を入力してください'); return; }
+  if (!dbUrl.startsWith('https://')) {
+    alert('データベースURLは https:// で始まるURLを入力してください。\n例: https://your-app-default-rtdb.asia-southeast1.firebasedatabase.app');
+    return;
+  }
+
+  // Firebaseコンソールが出力するJS形式をそのままJSとして実行して取得する
+  let config = {};
+  if (raw) {
+    try {
+      let code = raw;
+      // 「firebaseConfig =」という代入文が含まれていない場合は補完する
+      if (!/firebaseConfig\s*=/.test(code)) {
+        const inner = code.trim().startsWith('{') ? code : '{' + code + '}';
+        code = 'var firebaseConfig = ' + inner;
+      }
+      // new Function で安全にJSオブジェクトを取得
+      // eslint-disable-next-line no-new-func
+      config = new Function(code + ';\nreturn firebaseConfig;')();
+      if (!config || typeof config !== 'object') throw new Error('not object');
+    } catch(err) {
+      alert(
+        'Firebase設定（①）の読み取りに失敗しました。\n\n' +
+        'Firebaseコンソールで表示される\n\n' +
+        'const firebaseConfig = {\n' +
+        '  apiKey: "...",\n' +
+        '  ...\n' +
+        '};\n\n' +
+        'を「const から ; まで」丸ごとコピーして貼り付けてください。\n' +
+        '（①は省略可能です。②のURLと③のキーだけでも動作します）'
+      );
+      return;
+    }
+  }
+
+  // ② で入力したURLを最優先で使用（fbConfigのdatabaseURLを上書き）
+  config.databaseURL = dbUrl;
+
+  localStorage.setItem('yasai_fb', JSON.stringify({config, key}));
+  FB_KEY = key;
+  render(); // 即座に「接続中...」画面を表示
+  initFirebase(config); // 非同期でFirebase接続（完了後に再度renderされる）
+});
+
+// Firebase disconnect / reset buttons
+document.addEventListener('click', e => {
+  if (e.target.id === 'cloud-push-btn') {
+    if (!confirm('この端末のデータ（写真含む）をクラウドへ送信します。\n他の端末のデータはこの端末のデータで上書きされます。よろしいですか？')) return;
+    forcePushToCloud();
+    return;
+  }
+  if (e.target.id === 'cloud-pull-btn') {
+    if (!confirm('クラウドの最新データをこの端末に取得します。\nこの端末のデータはクラウドのデータで上書きされます。よろしいですか？')) return;
+    forcePullFromCloud();
+    return;
+  }
+  if (e.target.id === 'cloud-disconnect-btn') {
+    if (!confirm('クラウド同期を切断します。\nローカルのデータはそのまま残ります。')) return;
+    disconnectCloud();
+    render();
+  }
+  if (e.target.id === 'cloud-diag-btn') {
+    runFirebaseDiagnostic();
+    return;
+  }
+  if (e.target.id === 'cloud-reset-btn') {
+    // エラー状態のまま設定だけ消してフォームに戻る
+    clearTimeout(FB_TIMEOUT);
+    FB_DB = null; FB_KEY = null; FB_ERROR = null;
+    if (FB_LISTENER) FB_LISTENER = null;
+    localStorage.removeItem('yasai_fb');
+    updateSyncBadge('none');
+    render();
+  }
+});
+
+// 写真同期モード チェックボックス
+document.addEventListener('change', e => {
+  if (e.target.id === 'photo-push-toggle') {
+    localStorage.setItem('yasai_photo_push', e.target.checked ? 'true' : 'false');
+    render(); // 警告メッセージの表示/非表示を更新
+  }
+});
+
+// ===================== LIGHTBOX =====================
+let _lbPhotos=[], _lbIdx=0;
+let _lbTouchStartX=0;
+
+function showLightbox(photos, idx){
+  _lbPhotos=photos; _lbIdx=idx;
+  const lb=document.getElementById('lightbox');
+  lb.style.display='flex';
+  _updateLightbox();
+}
+function hideLightbox(){
+  document.getElementById('lightbox').style.display='none';
+}
+function _updateLightbox(){
+  document.getElementById('lightbox-img').src=_lbPhotos[_lbIdx];
+  const multi=_lbPhotos.length>1;
+  const prev=document.getElementById('lightbox-prev');
+  const next=document.getElementById('lightbox-next');
+  prev.style.display=multi?'flex':'none';
+  next.style.display=multi?'flex':'none';
+  document.getElementById('lightbox-counter').textContent=
+    multi?(_lbIdx+1)+' / '+_lbPhotos.length:'';
+}
+
+// ライトボックスボタン操作
+document.getElementById('lightbox-close').addEventListener('click',hideLightbox);
+document.getElementById('lightbox').addEventListener('click',e=>{
+  if(e.target.id==='lightbox') hideLightbox();
+});
+document.getElementById('lightbox-prev').addEventListener('click',e=>{
+  e.stopPropagation();
+  _lbIdx=(_lbIdx-1+_lbPhotos.length)%_lbPhotos.length; _updateLightbox();
+});
+document.getElementById('lightbox-next').addEventListener('click',e=>{
+  e.stopPropagation();
+  _lbIdx=(_lbIdx+1)%_lbPhotos.length; _updateLightbox();
+});
+
+// スマホスワイプ対応
+document.getElementById('lightbox').addEventListener('touchstart',e=>{
+  _lbTouchStartX=e.touches[0].clientX;
+},{passive:true});
+document.getElementById('lightbox').addEventListener('touchend',e=>{
+  const dx=e.changedTouches[0].clientX-_lbTouchStartX;
+  if(Math.abs(dx)>50&&_lbPhotos.length>1){
+    _lbIdx=dx<0?(_lbIdx+1)%_lbPhotos.length:(_lbIdx-1+_lbPhotos.length)%_lbPhotos.length;
+    _updateLightbox();
+  }
+},{passive:true});
+
+// キーボード操作
+document.addEventListener('keydown',e=>{
+  const lb=document.getElementById('lightbox');
+  if(lb.style.display!=='flex')return;
+  if(e.key==='Escape')hideLightbox();
+  if(e.key==='ArrowLeft'&&_lbPhotos.length>1){_lbIdx=(_lbIdx-1+_lbPhotos.length)%_lbPhotos.length;_updateLightbox();}
+  if(e.key==='ArrowRight'&&_lbPhotos.length>1){_lbIdx=(_lbIdx+1)%_lbPhotos.length;_updateLightbox();}
+});
+
+// 写真クリックでライトボックス表示（全画面）
+document.addEventListener('click',e=>{
+  const img=e.target.closest('.viewable-photo');
+  if(!img)return;
+  const gid=img.dataset.gid;
+  const idx=parseInt(img.dataset.idx)||0;
+  const photos=_photoGroups[gid]||[img.src];
+  showLightbox(photos,idx);
+});
+
+// ===================== INIT =====================
+loadData();
+loadCloudConfig();
+render();
+// Auto-scroll timeline to today on load
+</script>
+</body>
+</html>
