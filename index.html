@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>家庭菜園管理 v20260807c</title>
+<title>家庭菜園管理 v20260810</title>
 <style>
 :root {
   --primary:#3d7a3d; --primary-d:#2a5a2a; --primary-l:#a8d4a8;
@@ -1149,35 +1149,47 @@ function _flushSaveToCloud() {
   }).catch(() => _commitCloudWrite(meta, photosObj)); // 読み取り失敗時はそのまま書き込む
 }
 
+// ── 写真をスケジュール単位で1件ずつ順次アップロードする ──
+// 以前は全写真を1回のupdate()でまとめて送信していたため、写真が多いと
+// モバイル回線でタイムアウトしていた。1件ずつ送ることで
+// ・1回あたりの送信量が小さくなりタイムアウトしにくい
+// ・成功した分は _syncedPhotoIds に記録され、失敗しても残りだけ再送すればよい
+// ・バッジに進捗（⏳2/5）を表示できる
+// 成功したID配列をresolveで返す。失敗時はerr._sentIdsに送信済みIDを載せてreject。
+function _uploadPhotosSequential(photosObj, ids, perTimeout) {
+  const sent = [];
+  const badge = document.getElementById('sync-badge');
+  let chain = Promise.resolve();
+  ids.forEach((id, idx) => {
+    chain = chain.then(() => {
+      if (badge && ids.length > 1) { badge.textContent = '⏳' + (idx+1) + '/' + ids.length; badge.title = '写真を同期中... (' + (idx+1) + '/' + ids.length + ')'; }
+      return _withTimeout(FB_DB.ref('yasai/'+FB_KEY+'/photos/'+id).set(photosObj[id]), perTimeout)
+        .then(() => { sent.push(id); _syncedPhotoIds.add(id); });
+    });
+  });
+  return chain.then(() => sent).catch(err => { err._sentIds = sent; throw err; });
+}
+
 function _commitCloudWrite(meta, photosObj) {
   const updates = {};
   updates['yasai/'+FB_KEY+'/meta'] = meta;
-
-  // 写真はデバイスの設定に従い Firebase へ書き込む
-  // ── 既に送信済み（_syncedPhotoIds）の写真は再送信しない ──
-  // （毎回の保存で全写真を再アップロードすると通信量が膨大になり、
-  //   モバイル回線で同期バッジが「同期中」のまま固まる原因になっていた）
-  const pushPhotos = localStorage.getItem('yasai_photo_push') !== 'false';
-  const idsToSend = [];
-  if (pushPhotos) {
-    Object.keys(photosObj).forEach(id => {
-      if (!_syncedPhotoIds.has(id)) {
-        updates['yasai/'+FB_KEY+'/photos/'+id] = photosObj[id];
-        idsToSend.push(id);
-      }
-    });
-  }
   // 削除されたスケジュールの写真は端末設定に関わらず消す
   _pendingPhotoDeletes.forEach(id => {
     updates['yasai/'+FB_KEY+'/photos/'+id] = null;
     _syncedPhotoIds.delete(id);
   });
+  // 写真はデバイスの設定に従い、未送信（_syncedPhotoIdsにない）のものだけ送る
+  const pushPhotos = localStorage.getItem('yasai_photo_push') !== 'false';
+  const idsToSend = pushPhotos ? Object.keys(photosObj).filter(id => !_syncedPhotoIds.has(id)) : [];
 
-  _withTimeout(FB_DB.ref().update(updates), 20000)
+  // ① まずテキスト（meta）と写真削除を書き込む（軽量なので確実に届く）
+  _withTimeout(FB_DB.ref().update(updates), 30000)
     .then(() => {
-      idsToSend.forEach(id => _syncedPhotoIds.add(id));
-      _pendingPhotoDeletes.clear(); _pendingHarvestDeletes.clear(); updateSyncBadge('ok');
+      _pendingPhotoDeletes.clear(); _pendingHarvestDeletes.clear();
+      // ② 写真は1件ずつ順次アップロード（1件あたり60秒まで許容）
+      return _uploadPhotosSequential(photosObj, idsToSend, 60000);
     })
+    .then(() => updateSyncBadge('ok'))
     .catch(err => { console.error('saveToCloud error:', err); updateSyncBadge('error'); });
 }
 
@@ -1188,24 +1200,33 @@ function forcePushToCloud() {
   const { meta, photosObj } = _splitDataForCloud();
   const updates = {};
   updates['yasai/'+FB_KEY+'/meta'] = meta;
-  // 写真は個別パスで更新（bulkで上書きすると他端末の写真が消えるのを防ぐ）
-  const pushPhotos = localStorage.getItem('yasai_photo_push') !== 'false';
-  if (pushPhotos) {
-    Object.keys(photosObj).forEach(id => {
-      updates['yasai/'+FB_KEY+'/photos/'+id] = photosObj[id];
-    });
-  }
   _pendingPhotoDeletes.forEach(id => {
     updates['yasai/'+FB_KEY+'/photos/'+id] = null;
+    _syncedPhotoIds.delete(id);
   });
-  _withTimeout(FB_DB.ref().update(updates), 30000)
+  // 送信済み（変更なし）の写真はスキップし、残りを1件ずつ順次アップロード
+  // （全写真を1回で送るとモバイル回線でタイムアウトするため）
+  const pushPhotos = localStorage.getItem('yasai_photo_push') !== 'false';
+  const idsToSend = pushPhotos ? Object.keys(photosObj).filter(id => !_syncedPhotoIds.has(id)) : [];
+
+  _withTimeout(FB_DB.ref().update(updates), 60000)
     .then(() => {
-      Object.keys(photosObj).forEach(id => _syncedPhotoIds.add(id));
       _pendingPhotoDeletes.clear();
-      updateSyncBadge('ok');
-      alert('✅ この端末のデータをクラウドへ送信しました！\n他の端末でページを再読み込みすると反映されます。');
+      return _uploadPhotosSequential(photosObj, idsToSend, 60000);
     })
-    .catch(err => { updateSyncBadge('error'); alert('同期エラー：' + (err.message || String(err))); });
+    .then(sent => {
+      updateSyncBadge('ok');
+      alert('✅ この端末のデータをクラウドへ送信しました！\n' +
+        (sent.length ? '（写真 ' + sent.length + '件を送信）\n' : '') +
+        '他の端末でページを再読み込みすると反映されます。');
+    })
+    .catch(err => {
+      updateSyncBadge('error');
+      const sentCount = (err && err._sentIds) ? err._sentIds.length : 0;
+      alert('⚠️ 同期が途中で止まりました：' + (err.message || String(err)) +
+        '\n\nここまでに写真 ' + sentCount + '/' + idsToSend.length + ' 件は送信済みです。' +
+        '\n電波の良い場所でもう一度「📤 この端末 → クラウド」を押すと、残りだけ送信されます。');
+    });
 }
 
 // Firebase から最新の収穫データを取得して D.harvests にマージする
@@ -2378,7 +2399,7 @@ document.addEventListener('submit',e=>{
       if (pushPhotos) {
         const photoUpdate = {};
         photoUpdate['yasai/'+FB_KEY+'/photos/'+entry.id] = photos;
-        FB_DB.ref().update(photoUpdate)
+        _withTimeout(FB_DB.ref().update(photoUpdate), 60000)
           .then(() => { _syncedPhotoIds.add(entry.id); updateSyncBadge('ok'); })
           .catch(err => { console.warn('写真の即時保存エラー:', err); updateSyncBadge('error'); });
       }
